@@ -71,6 +71,18 @@ const AdminHub = () => {
       suffix: "categories",
     },
     {
+      title: "Coupons",
+      description: "Discounts & promotional codes",
+      icon: ShieldCheck,
+      to: "/admin/coupons",
+    },
+    {
+      title: "API Logs",
+      description: "Audit trail & security telemetry",
+      icon: ShieldCheck,
+      to: "/admin/api-logs",
+    },
+    {
       title: "Homepage",
       description: "Hero & featured sections",
       icon: Home,

@@ -25,6 +25,8 @@ const navItems = [
   { title: "Products", url: "/product-manager", icon: Package },
   { title: "Categories", url: "/category-manager", icon: FolderTree },
   { title: "Orders", url: "/dashboard", icon: ShoppingBag },
+  { title: "Coupons", url: "/admin/coupons", icon: Palette },
+  { title: "API Logs", url: "/admin/api-logs", icon: Home },
   { title: "Homepage", url: "/homepage-manager", icon: Home },
   { title: "Brand Settings", url: "/brand-settings", icon: Palette },
 ];

@@ -1,0 +1,220 @@
+{
+  "info": {
+    "name": "Aurix Perfume REST API Collection",
+    "description": "Production REST API for Aurix Perfume built on Supabase Edge Functions",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "https://your-project-id.supabase.co/functions/v1",
+      "type": "string"
+    },
+    {
+      "key": "ANON_KEY",
+      "value": "your-anon-publishable-key",
+      "type": "string"
+    },
+    {
+      "key": "ACCESS_TOKEN",
+      "value": "your-user-or-admin-jwt",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Public Storefront",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "apikey", "value": "{{ANON_KEY}}" }],
+            "url": {
+              "raw": "{{BASE_URL}}/products-list?category=oriental&page=1&limit=20",
+              "host": ["{{BASE_URL}}"],
+              "path": ["products-list"],
+              "query": [
+                { "key": "category", "value": "oriental" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "apikey", "value": "{{ANON_KEY}}" }],
+            "url": {
+              "raw": "{{BASE_URL}}/products-get?id=1",
+              "host": ["{{BASE_URL}}"],
+              "path": ["products-get"],
+              "query": [{ "key": "id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Validate Coupon",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "apikey", "value": "{{ANON_KEY}}" }],
+            "url": {
+              "raw": "{{BASE_URL}}/coupons-validate?code=WELCOME10&subtotal=2500",
+              "host": ["{{BASE_URL}}"],
+              "path": ["coupons-validate"],
+              "query": [
+                { "key": "code", "value": "WELCOME10" },
+                { "key": "subtotal", "value": "2500" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer Orders & Checkout",
+      "item": [
+        {
+          "name": "Checkout Order (Atomic)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{ANON_KEY}}" },
+              { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"product_id\": 1, \"quantity\": 1 }\n  ],\n  \"shipping_address\": {\n    \"full_name\": \"Usama Malik\",\n    \"address\": \"42 Luxury Estate\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"zip\": \"400050\",\n    \"phone\": \"+919876543210\"\n  },\n  \"coupon_code\": \"WELCOME10\",\n  \"payment_method\": \"card\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/checkout",
+              "host": ["{{BASE_URL}}"],
+              "path": ["checkout"]
+            }
+          }
+        },
+        {
+          "name": "My Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{ANON_KEY}}" },
+              { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/orders-my?page=1&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["orders-my"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Initiate Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{ANON_KEY}}" },
+              { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"your-order-uuid\",\n  \"provider\": \"stripe\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/payment-initiate",
+              "host": ["{{BASE_URL}}"],
+              "path": ["payment-initiate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Management",
+      "item": [
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{ANON_KEY}}" },
+              { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/admin-dashboard-stats",
+              "host": ["{{BASE_URL}}"],
+              "path": ["admin-dashboard-stats"]
+            }
+          }
+        },
+        {
+          "name": "List Admin Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{ANON_KEY}}" },
+              { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/admin-orders-list?status=pending&page=1&limit=20",
+              "host": ["{{BASE_URL}}"],
+              "path": ["admin-orders-list"],
+              "query": [
+                { "key": "status", "value": "pending" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{ANON_KEY}}" },
+              { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"your-order-uuid\",\n  \"status\": \"shipped\",\n  \"shipping_carrier\": \"bluedart\",\n  \"tracking_number\": \"BD123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/admin-orders-update-status",
+              "host": ["{{BASE_URL}}"],
+              "path": ["admin-orders-update-status"]
+            }
+          }
+        },
+        {
+          "name": "List API Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{ANON_KEY}}" },
+              { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/admin-api-logs?page=1&limit=30",
+              "host": ["{{BASE_URL}}"],
+              "path": ["admin-api-logs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "30" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

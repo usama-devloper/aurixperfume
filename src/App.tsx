@@ -37,6 +37,8 @@ import CategoryManager from "@/pages/CategoryManager";
 import Contact from "@/pages/Contact";
 import Careers from "@/pages/Careers";
 import AdminHub from "@/pages/AdminHub";
+import AdminCoupons from "@/pages/AdminCoupons";
+import AdminApiLogs from "@/pages/AdminApiLogs";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { FloatingAdminButton } from "@/components/admin/FloatingAdminButton";
 
@@ -65,6 +67,8 @@ const AnimatedRoutes = () => {
         
         {/* Admin routes */}
         <Route path="/admin" element={<PageTransition><AdminLayout><AdminHub /></AdminLayout></PageTransition>} />
+        <Route path="/admin/coupons" element={<PageTransition><AdminLayout><AdminCoupons /></AdminLayout></PageTransition>} />
+        <Route path="/admin/api-logs" element={<PageTransition><AdminLayout><AdminApiLogs /></AdminLayout></PageTransition>} />
         <Route path="/product-manager" element={<PageTransition><AdminLayout><ProductManager /></AdminLayout></PageTransition>} />
         <Route path="/homepage-manager" element={<PageTransition><AdminLayout><HomepageManager /></AdminLayout></PageTransition>} />
         <Route path="/brand-settings" element={<PageTransition><AdminLayout><BrandSettings /></AdminLayout></PageTransition>} />
