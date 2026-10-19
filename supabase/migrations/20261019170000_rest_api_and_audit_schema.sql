@@ -20,9 +20,15 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at timestamptz DEFAULT now() NOT NULL
 );
 
+-- Ensure additive columns exist if profiles was pre-created with only first_name/last_name
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role public.app_role DEFAULT 'customer'::public.app_role NOT NULL;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Synchronize existing users and roles into profiles
+-- Synchronize existing users and roles into profiles (preserving existing full_name if present)
 INSERT INTO public.profiles (id, full_name, role)
 SELECT 
   u.id,
@@ -33,7 +39,9 @@ SELECT
   END
 FROM auth.users u
 ON CONFLICT (id) DO UPDATE 
-SET role = EXCLUDED.role;
+SET 
+  role = EXCLUDED.role,
+  full_name = COALESCE(public.profiles.full_name, EXCLUDED.full_name);
 
 -- 2. COUPONS TABLE
 CREATE TABLE IF NOT EXISTS public.coupons (
