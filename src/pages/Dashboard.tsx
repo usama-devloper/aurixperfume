@@ -44,6 +44,10 @@ const Dashboard = () => {
   const [bulkTrackingNumber, setBulkTrackingNumber] = useState("");
   const [bulkEstimatedDelivery, setBulkEstimatedDelivery] = useState<Date | undefined>(undefined);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState<string>("all");
   
   // Redirect if user is not logged in or not an admin
   if (!user) {
@@ -54,8 +58,28 @@ const Dashboard = () => {
     return <Navigate to="/" />;
   }
 
+  const applyFilters = (orderList: Order[]) => {
+    return orderList.filter(order => {
+      // Payment filter
+      if (paymentFilter !== "all" && (order.payment_status || "unpaid") !== paymentFilter) {
+        return false;
+      }
+      // Search query
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const orderNum = (order.order_number || "").toLowerCase();
+        const customer = (order.shipping_address?.full_name || "").toLowerCase();
+        const utr = (order.upi_utr || "").toLowerCase();
+        const tracking = (order.tracking_number || "").toLowerCase();
+        const matches = orderNum.includes(query) || customer.includes(query) || utr.includes(query) || tracking.includes(query);
+        if (!matches) return false;
+      }
+      return true;
+    });
+  };
+
   const filterOrdersByStatus = (status: Order["status"]) => {
-    return orders.filter(order => order.status === status);
+    return applyFilters(orders.filter(order => order.status === status));
   };
 
   const handleUpdateStatus = async (orderId: string, newStatus: Order["status"]) => {
@@ -193,9 +217,17 @@ const Dashboard = () => {
                       size="sm"
                       variant="outline"
                       className="h-6 text-xs px-2"
-                      onClick={() => bulkUpdateOrders([order.id], { payment_status: "paid", status: "processing" } as any)}
+                      title={order.upi_utr ? "Verify and confirm payment" : "Requires verified payment proof"}
+                      onClick={() => {
+                        const confirmMsg = order.upi_utr 
+                          ? `Confirm payment of ₹${order.total_amount.toFixed(2)} received for UTR: ${order.upi_utr}?`
+                          : `Confirm that ₹${order.total_amount.toFixed(2)} was verified and received offline for ${order.payment_method}?`;
+                        if (window.confirm(confirmMsg)) {
+                          bulkUpdateOrders([order.id], { payment_status: "paid", status: "processing" } as any);
+                        }
+                      }}
                     >
-                      Mark Paid
+                      Verify & Mark Paid
                     </Button>
                   )}
                 </div>
@@ -509,58 +541,118 @@ const Dashboard = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* Metrics Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Card className="border-green-500/20 bg-green-500/5">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Verified Revenue</CardTitle>
+              <CardDescription>Paid & confirmed orders</CardDescription>
+            </div>
+            <span className="text-xl font-bold text-green-500">₹</span>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-green-600">
+              ₹{orders
+                .filter(o => o.payment_status === "paid")
+                .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0)
+                .toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
-              <CardTitle className="text-lg">Pending</CardTitle>
-              <CardDescription>Orders awaiting processing</CardDescription>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Pending Orders</CardTitle>
+              <CardDescription>Awaiting processing</CardDescription>
             </div>
-            <PackageSearch className="w-8 h-8 text-warning" />
+            <PackageSearch className="w-5 h-5 text-warning" />
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{filterOrdersByStatus("pending").length}</p>
+            <p className="text-2xl font-bold">{orders.filter(o => o.status === "pending").length}</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
-              <CardTitle className="text-lg">Shipped</CardTitle>
-              <CardDescription>Orders in transit</CardDescription>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Shipped</CardTitle>
+              <CardDescription>In transit</CardDescription>
             </div>
-            <TruckIcon className="w-8 h-8 text-secondary" />
+            <TruckIcon className="w-5 h-5 text-secondary" />
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{filterOrdersByStatus("shipped").length}</p>
+            <p className="text-2xl font-bold">{orders.filter(o => o.status === "shipped").length}</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
-              <CardTitle className="text-lg">Delivered</CardTitle>
-              <CardDescription>Completed orders</CardDescription>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
+              <CardDescription>All-time placed</CardDescription>
             </div>
-            <CheckCircle className="w-8 h-8 text-accent" />
+            <CheckCircle className="w-5 h-5 text-accent" />
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{filterOrdersByStatus("delivered").length}</p>
+            <p className="text-2xl font-bold">{orders.length}</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6 items-center justify-between">
+        <div className="relative w-full sm:w-80">
+          <Input
+            placeholder="Search order #, customer, UTR, tracking..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Payment Status:</span>
+          <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+            <SelectTrigger className="w-[160px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              <SelectItem value="paid">Paid Only</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="cod_pending">COD Pending</SelectItem>
+              <SelectItem value="awaiting_contact">WhatsApp Pending</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+            </SelectContent>
+          </Select>
+          {(searchQuery || paymentFilter !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery("");
+                setPaymentFilter("all");
+              }}
+              className="text-xs h-9"
+            >
+              Reset
+            </Button>
+          )}
+        </div>
+      </div>
+
       <Tabs defaultValue="all">
         <TabsList className="mb-4">
-          <TabsTrigger value="all">All Orders</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="processing">Processing</TabsTrigger>
-          <TabsTrigger value="shipped">Shipped</TabsTrigger>
-          <TabsTrigger value="delivered">Delivered</TabsTrigger>
+          <TabsTrigger value="all">All Orders ({applyFilters(orders).length})</TabsTrigger>
+          <TabsTrigger value="pending">Pending ({filterOrdersByStatus("pending").length})</TabsTrigger>
+          <TabsTrigger value="processing">Processing ({filterOrdersByStatus("processing").length})</TabsTrigger>
+          <TabsTrigger value="shipped">Shipped ({filterOrdersByStatus("shipped").length})</TabsTrigger>
+          <TabsTrigger value="delivered">Delivered ({filterOrdersByStatus("delivered").length})</TabsTrigger>
         </TabsList>
         
         <TabsContent value="all">
-          {renderOrdersTable(orders)}
+          {renderOrdersTable(applyFilters(orders))}
         </TabsContent>
         
         <TabsContent value="pending">

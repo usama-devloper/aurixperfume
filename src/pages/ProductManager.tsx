@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
-import { Pencil, Trash2, Plus, Search, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Loader2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -25,6 +25,7 @@ const ProductManager = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({
     name: "",
     price: 0,
@@ -355,14 +356,65 @@ const ProductManager = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="image">Image URL</Label>
-                <Input
-                  id="image"
-                  name="image"
-                  value={formData.image || ""}
-                  onChange={handleInputChange}
-                  placeholder="/placeholder.svg"
-                />
+                <Label htmlFor="image">Product Image</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="image"
+                    name="image"
+                    value={formData.image || ""}
+                    onChange={handleInputChange}
+                    placeholder="/placeholder.svg or URL"
+                    className="flex-1"
+                  />
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setIsUploadingImage(true);
+                        try {
+                          const fileExt = file.name.split(".").pop();
+                          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+                          const filePath = `products/${fileName}`;
+
+                          const { error: uploadError } = await supabase.storage
+                            .from("product-images")
+                            .upload(filePath, file);
+
+                          if (uploadError) throw uploadError;
+
+                          const { data: { publicUrl } } = supabase.storage
+                            .from("product-images")
+                            .getPublicUrl(filePath);
+
+                          setFormData(prev => ({ ...prev, image: publicUrl }));
+                          toast({ title: "Image uploaded", description: "Image uploaded to Supabase Storage successfully." });
+                        } catch (err: any) {
+                          console.error("Storage upload error:", err);
+                          toast({
+                            title: "Upload note",
+                            description: "Storage bucket not yet public or failed. You can paste the image URL directly.",
+                            variant: "destructive",
+                          });
+                        } finally {
+                          setIsUploadingImage(false);
+                        }
+                      }}
+                    />
+                    <Button type="button" variant="outline" size="sm" asChild disabled={isUploadingImage}>
+                      <span>{isUploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}</span>
+                    </Button>
+                  </label>
+                </div>
+                {formData.image && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img src={formData.image} alt="Preview" className="w-12 h-12 object-cover rounded border" />
+                    <span className="text-xs text-muted-foreground truncate max-w-[240px]">{formData.image}</span>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2">

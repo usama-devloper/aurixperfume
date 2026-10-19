@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminStats } from "@/hooks/useAdminStats";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,17 +16,42 @@ import {
 } from "lucide-react";
 
 const AdminHub = () => {
-  const { user } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   const { data: stats, isLoading } = useAdminStats();
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-16 flex justify-center items-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth?redirect=/admin" />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" />;
+  }
 
   const tiles = [
     {
+      title: "Revenue",
+      description: "Verified paid orders",
+      icon: ShieldCheck,
+      to: "/dashboard",
+      value: stats?.verifiedRevenue !== undefined ? `₹${stats.verifiedRevenue.toLocaleString("en-IN")}` : undefined,
+      suffix: "verified",
+      highlight: true,
+    },
+    {
       title: "Products",
-      description: "Manage your catalog",
+      description: "Manage catalog & stock",
       icon: Package,
       to: "/product-manager",
       value: stats?.products,
-      suffix: "items",
+      suffix: stats?.lowStock ? `${stats.lowStock} low stock` : "items",
     },
     {
       title: "Orders",
@@ -34,7 +59,7 @@ const AdminHub = () => {
       icon: ShoppingBag,
       to: "/dashboard",
       value: stats?.pendingOrders,
-      suffix: stats?.totalOrders ? `of ${stats.totalOrders}` : "pending",
+      suffix: stats?.totalOrders ? `of ${stats.totalOrders} total` : "pending",
       highlight: (stats?.pendingOrders ?? 0) > 0,
     },
     {
@@ -56,12 +81,6 @@ const AdminHub = () => {
       description: "Identity, contact, social",
       icon: Palette,
       to: "/brand-settings",
-    },
-    {
-      title: "Security Logs",
-      description: "Recent security events",
-      icon: ShieldCheck,
-      to: "/dashboard",
     },
   ];
 

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Package, MapPin, Clock, Truck } from "lucide-react";
+import { Package, MapPin, Clock, Truck, CreditCard } from "lucide-react";
 
 interface OrderDetailsModalProps {
   order: Order | null;
@@ -167,6 +167,42 @@ const OrderDetailsModal = ({ order, open, onOpenChange }: OrderDetailsModalProps
             ) : (
               <p className="text-muted-foreground text-sm">No shipping address available</p>
             )}
+          </div>
+
+          {/* Payment & Verification Information */}
+          <Separator />
+          <div>
+            <h3 className="text-sm font-medium flex items-center gap-2 mb-3">
+              <CreditCard className="h-4 w-4" />
+              Payment & Verification Details
+            </h3>
+            <div className="p-3 rounded-lg bg-muted/50 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-muted-foreground block text-xs">Payment Method</span>
+                <span className="font-medium uppercase">{order.payment_method === "manual" ? "WhatsApp (Direct)" : (order.payment_method || "N/A")}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-xs">Payment Status</span>
+                <span className={`font-semibold capitalize ${
+                  order.payment_status === "paid" ? "text-green-600" :
+                  order.payment_status === "failed" ? "text-destructive" : "text-orange-500"
+                }`}>
+                  {(order.payment_status || "unpaid").replace(/_/g, " ")}
+                </span>
+              </div>
+              {order.upi_utr && (
+                <div className="sm:col-span-2">
+                  <span className="text-muted-foreground block text-xs">UPI Transaction UTR</span>
+                  <span className="font-mono bg-background px-2 py-1 rounded border text-xs">{order.upi_utr}</span>
+                </div>
+              )}
+              {order.payment_reference && (
+                <div className="sm:col-span-2">
+                  <span className="text-muted-foreground block text-xs">Gateway / Session Reference</span>
+                  <span className="font-mono text-xs text-muted-foreground break-all">{order.payment_reference}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Tracking Info */}
