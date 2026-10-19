@@ -13,6 +13,11 @@
     "strictNullChecks": false
   },
   "files": [],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "supabase/functions"
+  ],
   "references": [
     {
       "path": "./tsconfig.app.json"
