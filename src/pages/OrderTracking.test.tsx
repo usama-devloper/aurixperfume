@@ -21,6 +21,9 @@ vi.mock("@/integrations/supabase/client", () => ({
       calls.push({ method: "from", args: [table] });
       return builder;
     }),
+    rpc: vi.fn(async () => {
+      return { data: null, error: null };
+    }),
   },
 }));
 

@@ -120,6 +120,35 @@ export const useOrders = () => {
     try {
       if (!user) throw new Error("User not authenticated");
 
+      // 1. Try server-authoritative order creation RPC (atomic transaction with DB-verified prices & stock)
+      const rpcPayload = {
+        p_items: cartItems.map(it => ({ product_id: it.product.id, quantity: it.quantity })),
+        p_shipping_address_id: shippingAddressId,
+        p_payment_method: paymentOptions?.payment_method ?? "card",
+        p_upi_utr: paymentOptions?.upi_utr ?? null
+      };
+
+      const { data: rpcRes, error: rpcErr } = await supabase
+        .rpc("create_authoritative_order", rpcPayload);
+
+      if (!rpcErr && rpcRes && rpcRes.order_id) {
+        fetchOrders();
+        return {
+          id: rpcRes.order_id,
+          order_number: rpcRes.order_number,
+          total_amount: rpcRes.total_amount,
+          status: "pending",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          payment_status: rpcRes.payment_status,
+          payment_method: paymentOptions?.payment_method ?? null,
+          tracking_number: null,
+          shipping_carrier: null,
+          estimated_delivery: null,
+        } as unknown as Order;
+      }
+
+      // 2. Client-side fallback if migration not yet applied
       // Ensure user exists in public.users to prevent foreign key constraint violations
       await supabase
         .from("users")

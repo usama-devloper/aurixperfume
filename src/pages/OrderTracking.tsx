@@ -57,8 +57,33 @@ const OrderTracking = () => {
     setTrackingResult(null);
     
     try {
-      // Use exact-match lookups (not wildcard ILIKE) to prevent
-      // anonymous order enumeration via partial-prefix scanning.
+      // First try secure RPC if available
+      let rpcData: any = null;
+      let rpcError: any = null;
+
+      if (typeof supabase.rpc === "function") {
+        const res = await supabase.rpc("track_order", { p_query: query });
+        rpcData = res.data;
+        rpcError = res.error;
+      }
+
+      const record = Array.isArray(rpcData) && rpcData.length > 0 ? rpcData[0] : null;
+
+      if (!rpcError && record) {
+        setTrackingResult({
+          orderId: record.order_number,
+          orderNumber: record.order_number,
+          trackingNumber: record.tracking_number,
+          shippingCarrier: record.shipping_carrier,
+          status: record.status as OrderStatus,
+          estimatedDelivery: record.estimated_delivery,
+          createdAt: record.created_at,
+          updatedAt: record.updated_at,
+        });
+        return;
+      }
+
+      // Fallback for environments where RPC is not yet pushed
       const { data, error: fetchError } = await supabase
         .from("orders")
         .select("id, order_number, tracking_number, shipping_carrier, status, estimated_delivery, created_at, updated_at")
@@ -66,7 +91,7 @@ const OrderTracking = () => {
         .limit(1)
         .maybeSingle();
       
-      if (fetchError) throw fetchError;
+      if (fetchError && !rpcError) throw fetchError;
       
       if (data) {
         setTrackingResult({
