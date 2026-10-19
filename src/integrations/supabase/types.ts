@@ -550,6 +550,37 @@ export type Database = {
         }
         Returns: string
       }
+      create_authoritative_order: {
+        Args: {
+          p_items: Json
+          p_shipping_address_id: string
+          p_payment_method?: string
+          p_upi_utr?: string | null
+        }
+        Returns: {
+          order_id: string
+          order_number: string
+          total_amount: number
+          subtotal: number
+          shipping: number
+          tax: number
+          payment_status: string
+        }
+      }
+      track_order: {
+        Args: {
+          p_query: string
+        }
+        Returns: {
+          order_number: string
+          tracking_number: string | null
+          shipping_carrier: string | null
+          status: string
+          estimated_delivery: string | null
+          created_at: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
