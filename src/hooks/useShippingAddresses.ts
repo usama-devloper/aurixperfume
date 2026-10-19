@@ -130,7 +130,7 @@ export const useShippingAddresses = () => {
       if (!user) throw new Error("User not authenticated");
       
       const { address_type, full_name, ...restData } = addressData;
-      let updatePayload: any = { ...restData };
+      const updatePayload: any = { ...restData };
       
       if (full_name !== undefined || address_type !== undefined) {
         // Find existing to get the current values if one is missing

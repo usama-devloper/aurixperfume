@@ -117,11 +117,14 @@ const PaymentForm = ({ onSubmit, onBack, paymentInfo, setPaymentInfo, totalAmoun
               </Label>
             </div>
 
-            <div className="flex items-center space-x-2 p-3 border border-neutral-800 rounded-none hover:bg-neutral-800">
-              <RadioGroupItem value="razorpay" id="razorpay" />
-              <Label htmlFor="razorpay" className="flex items-center cursor-pointer flex-1">
-                <CreditCard className="w-5 h-5 mr-2 text-indigo-600" />
-                <span>Razorpay (Cards, UPI, NetBanking)</span>
+            <div className="flex items-center space-x-2 p-3 border border-neutral-800 rounded-none opacity-60">
+              <RadioGroupItem value="razorpay" id="razorpay" disabled />
+              <Label htmlFor="razorpay" className="flex items-center cursor-not-allowed flex-1">
+                <CreditCard className="w-5 h-5 mr-2 text-indigo-400" />
+                <div className="flex flex-col">
+                  <span className="text-gray-300">Razorpay (Cards, UPI, NetBanking)</span>
+                  <span className="text-[11px] text-amber-500 font-medium">Currently Unavailable (Integration in progress)</span>
+                </div>
               </Label>
             </div>
 

@@ -25,9 +25,9 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 const submit = async (value: string) => {
-  const input = screen.getByLabelText(/Order Number or Tracking ID/i);
+  const input = screen.getByLabelText(/Order ID or Tracking Number/i);
   fireEvent.change(input, { target: { value } });
-  fireEvent.click(screen.getByRole("button", { name: /track order/i }));
+  fireEvent.click(screen.getByRole("button", { name: /track/i }));
   await waitFor(() => expect(builder.maybeSingle).toHaveBeenCalled());
 };
 

@@ -55,10 +55,17 @@ serve(async (req) => {
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    // Verify the session belongs to this user's order
-    if (session.metadata?.order_id !== orderId) {
-      return new Response(JSON.stringify({ error: "Order mismatch" }), {
+    // Verify the session belongs to this user and order
+    if (session.metadata?.order_id !== orderId || session.metadata?.user_id !== userData.user.id) {
+      return new Response(JSON.stringify({ error: "Order or user mismatch" }), {
         status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (session.currency && session.currency.toLowerCase() !== "inr") {
+      return new Response(JSON.stringify({ error: "Currency mismatch" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
