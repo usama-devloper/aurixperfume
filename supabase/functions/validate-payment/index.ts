@@ -5,15 +5,13 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:8080',
-  'https://aurixperfume.lovable.app',
-  'https://id-preview--3b0914b1-3b7f-43c2-b91a-c3ffcf21ba65.lovable.app',
 ];
 
 const getCorsHeaders = (req: Request) => {
   const origin = req.headers.get('origin') || '';
-  const isAllowed = allowedOrigins.includes(origin) || origin.endsWith('.lovable.app');
+  const isAllowed = allowedOrigins.includes(origin) || origin.startsWith('http://localhost');
   return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : allowedOrigins[0],
+    'Access-Control-Allow-Origin': isAllowed ? origin : '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   };
 };

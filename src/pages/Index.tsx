@@ -85,7 +85,7 @@ const Index = () => {
               alt="Luxury perfume collection" 
               className="w-full aspect-[4/3] object-cover" 
               loading="lazy" 
-              src="/lovable-uploads/9a9c5644-b15b-4db6-a7d6-beba9ce14427.jpg" 
+              src="/images/9a9c5644-b15b-4db6-a7d6-beba9ce14427.jpg" 
             />
           </div>
         </div>
@@ -144,7 +144,7 @@ const Index = () => {
         <div className="absolute inset-0 z-0">
           <img 
             alt="Luxury perfume" 
-            src="/lovable-uploads/ebdae0f8-95b7-4ebd-a3be-6a869e69655f.jpg" 
+            src="/images/ebdae0f8-95b7-4ebd-a3be-6a869e69655f.jpg" 
             className="w-full h-full object-cover opacity-30" 
           />
           <div className="absolute inset-0 bg-black/60"></div>

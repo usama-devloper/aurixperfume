@@ -130,7 +130,7 @@ serve(async (req) => {
       });
     }
 
-    const origin = req.headers.get("origin") || "https://aurixperfume.lovable.app";
+    const origin = req.headers.get("origin") || "http://localhost:8080";
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
