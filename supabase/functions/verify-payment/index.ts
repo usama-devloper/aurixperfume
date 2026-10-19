@@ -8,7 +8,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+serve(async (req: any) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

@@ -24,7 +24,7 @@ interface RequestBody {
   cancelPath?: string;
 }
 
-serve(async (req) => {
+serve(async (req: any) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -104,20 +104,20 @@ serve(async (req) => {
     }
 
     // Fetch product details for names/images
-    const productIds = dbItems.map((it) => it.product_id);
+    const productIds = dbItems.map((it: any) => it.product_id);
     const { data: dbProducts } = await supabase
       .from("products")
       .select("id, name, image")
       .in("id", productIds);
 
-    const productMap = new Map((dbProducts || []).map((p) => [p.id, p]));
+    const productMap = new Map((dbProducts || []).map((p: any) => [p.id, p]));
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
       apiVersion: "2025-08-27.basil" as any,
     });
 
-    const lineItems = dbItems.map((item) => {
-      const prod = productMap.get(item.product_id);
+    const lineItems = dbItems.map((item: any) => {
+      const prod: any = productMap.get(item.product_id);
       return {
         price_data: {
           currency: "inr",
@@ -133,7 +133,7 @@ serve(async (req) => {
 
     // Validate that shipping and tax do not exceed total_amount
     const subtotal = dbItems.reduce(
-      (sum, it) => sum + Number(it.unit_price) * it.quantity,
+      (sum: number, it: any) => sum + Number(it.unit_price) * it.quantity,
       0
     );
     const expectedRemaining = Math.max(0, Number(order.total_amount) - subtotal);
