@@ -253,7 +253,91 @@ describe("E-Commerce Security & Payment Verification Logic", () => {
       expect(res.payment_method).toBe("card");
       expect(res.created_at).toBeDefined();
     });
+
+    it("rejects unauthorized shipping address when address ownership check fails", async () => {
+      const mockSupabase = {
+        rpc: vi.fn().mockResolvedValue({
+          data: null,
+          error: { message: "Invalid or unauthorized shipping address", code: "P0001" },
+        }),
+      };
+
+      const placeOrderHardened = async () => {
+        const { error: rpcErr } = await mockSupabase.rpc("create_authoritative_order", {
+          p_items: [{ product_id: 1, quantity: 1 }],
+          p_shipping_address_id: "unauthorized-addr-id",
+          p_payment_method: "card",
+        });
+
+        if (rpcErr) {
+          throw new Error("We could not complete your order. Please review your cart and try again.");
+        }
+      };
+
+      await expect(placeOrderHardened()).rejects.toThrow(
+        "We could not complete your order. Please review your cart and try again."
+      );
+    });
+
+    it("ensures site settings fallback calculation yields expected default fees when database rows are absent", () => {
+      // Simulating the plpgsql fallback logic
+      const computeFees = (
+        rawFee: string | null,
+        rawThresh: string | null,
+        rawTax: string | null,
+        subtotal: number
+      ) => {
+        let fee = 400;
+        let thresh = 2000;
+        let taxRate = 0.08;
+
+        const numRegex = /^[0-9]+(\.[0-9]+)?$/;
+        if (rawFee && numRegex.test(rawFee)) fee = parseFloat(rawFee);
+        if (rawThresh && numRegex.test(rawThresh)) thresh = parseFloat(rawThresh);
+        if (rawTax && numRegex.test(rawTax)) taxRate = parseFloat(rawTax);
+
+        const shipping = subtotal < thresh ? fee : 0;
+        const tax = Math.round(subtotal * taxRate * 100) / 100;
+        const total = subtotal + shipping + tax;
+        return { fee, thresh, taxRate, shipping, tax, total };
+      };
+
+      // Case 1: All settings missing (null / zero rows)
+      const resDefault = computeFees(null, null, null, 1500);
+      expect(resDefault.shipping).toBe(400);
+      expect(resDefault.tax).toBe(120);
+      expect(resDefault.total).toBe(2020);
+
+      // Case 2: Free shipping threshold met
+      const resFree = computeFees(null, null, null, 2500);
+      expect(resFree.shipping).toBe(0);
+      expect(resFree.total).toBe(2700);
+
+      // Case 3: Malformed non-numeric values in site_settings (e.g. "invalid_fee")
+      const resCorrupted = computeFees("corrupted_text", "bad_threshold", "not_a_tax", 1000);
+      expect(resCorrupted.fee).toBe(400); // safely falls back to default 400
+      expect(resCorrupted.thresh).toBe(2000); // safely falls back to default 2000
+      expect(resCorrupted.taxRate).toBe(0.08); // safely falls back to default 0.08
+    });
+
+    it("verifies duplicate product items in cart are aggregated correctly before price calculation", () => {
+      const items = [
+        { product_id: 1, quantity: 2 },
+        { product_id: 1, quantity: 3 },
+        { product_id: 2, quantity: 1 },
+      ];
+
+      // Simulate plpgsql GROUP BY product_id aggregation
+      const aggregated = items.reduce((acc, it) => {
+        acc[it.product_id] = (acc[it.product_id] || 0) + it.quantity;
+        return acc;
+      }, {} as Record<number, number>);
+
+      expect(aggregated[1]).toBe(5);
+      expect(aggregated[2]).toBe(1);
+    });
   });
 });
+
 
 

@@ -81,6 +81,10 @@ DECLARE
   v_free_shipping_threshold numeric := 2000;
   v_total_amount numeric := 0;
   v_payment_status text := 'unpaid';
+  v_payment_method text;
+  v_raw_fee text;
+  v_raw_thresh text;
+  v_raw_tax text;
 BEGIN
   -- 1. Authenticate user
   v_user_id := auth.uid();
@@ -95,31 +99,67 @@ BEGIN
   VALUES (v_user_id, COALESCE(v_user_email, ''))
   ON CONFLICT (id) DO NOTHING;
 
-  -- 2. Validate items
-  IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
-    RAISE EXCEPTION 'Order items cannot be empty';
+  -- 2. Verify Shipping Address Ownership
+  -- Orders require a valid shipping address owned by the authenticated user
+  IF p_shipping_address_id IS NULL THEN
+    RAISE EXCEPTION 'Shipping address is required to place an order';
   END IF;
 
-  -- 3. Read site settings for pricing
-  SELECT COALESCE(value::numeric, 400) INTO v_shipping_fee 
-  FROM public.site_settings WHERE key = 'shipping_fee';
-  
-  SELECT COALESCE(value::numeric, 2000) INTO v_free_shipping_threshold 
-  FROM public.site_settings WHERE key = 'free_shipping_threshold';
+  IF NOT EXISTS (
+    SELECT 1 FROM public.shipping_addresses
+    WHERE id = p_shipping_address_id AND user_id = v_user_id
+  ) THEN
+    RAISE EXCEPTION 'Invalid or unauthorized shipping address';
+  END IF;
 
-  SELECT COALESCE(value::numeric, 0.08) INTO v_tax_rate 
-  FROM public.site_settings WHERE key = 'tax_rate';
+  -- 3. Validate and Normalize Payment Method
+  v_payment_method := lower(trim(COALESCE(p_payment_method, '')));
+  IF v_payment_method NOT IN ('card', 'cod', 'manual', 'upi') THEN
+    RAISE EXCEPTION 'Unsupported or invalid payment method';
+  END IF;
 
-  -- 4. Calculate subtotal server-side using trusted product records
-  FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(product_id int, quantity int)
+  -- 4. Validate Items Payload (Array of objects, 1 to 50 items)
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 OR jsonb_array_length(p_items) > 50 THEN
+    RAISE EXCEPTION 'Order items must be a non-empty array with at most 50 items';
+  END IF;
+
+  -- 5. Read site settings with safe defaults (handles 0 rows and non-numeric values safely)
+  SELECT value INTO v_raw_fee FROM public.site_settings WHERE key = 'shipping_fee';
+  IF v_raw_fee IS NOT NULL AND v_raw_fee ~ '^[0-9]+(\.[0-9]+)?$' THEN
+    v_shipping_fee := v_raw_fee::numeric;
+  END IF;
+
+  SELECT value INTO v_raw_thresh FROM public.site_settings WHERE key = 'free_shipping_threshold';
+  IF v_raw_thresh IS NOT NULL AND v_raw_thresh ~ '^[0-9]+(\.[0-9]+)?$' THEN
+    v_free_shipping_threshold := v_raw_thresh::numeric;
+  END IF;
+
+  SELECT value INTO v_raw_tax FROM public.site_settings WHERE key = 'tax_rate';
+  IF v_raw_tax IS NOT NULL AND v_raw_tax ~ '^[0-9]+(\.[0-9]+)?$' THEN
+    v_tax_rate := v_raw_tax::numeric;
+  END IF;
+
+  -- 6. Calculate subtotal server-side using trusted product records & aggregate duplicate product IDs
+  FOR v_item IN 
+    SELECT 
+      product_id, 
+      SUM(quantity)::int AS quantity
+    FROM jsonb_to_recordset(p_items) AS x(product_id int, quantity int)
+    GROUP BY product_id
   LOOP
-    IF v_item.quantity <= 0 OR v_item.quantity > 99 THEN
+    IF v_item.product_id IS NULL OR v_item.product_id <= 0 THEN
+      RAISE EXCEPTION 'Invalid product ID in order items';
+    END IF;
+
+    IF v_item.quantity IS NULL OR v_item.quantity <= 0 OR v_item.quantity > 99 THEN
       RAISE EXCEPTION 'Invalid quantity % for product ID %', v_item.quantity, v_item.product_id;
     END IF;
 
+    -- Row lock for read consistency during checkout
     SELECT id, name, price, in_stock INTO v_product
     FROM public.products
-    WHERE id = v_item.product_id;
+    WHERE id = v_item.product_id
+    FOR SHARE;
 
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Product with ID % not found', v_item.product_id;
@@ -143,9 +183,9 @@ BEGIN
   v_total_amount := v_subtotal + v_shipping + v_tax;
 
   -- Determine initial payment status based on method
-  IF p_payment_method = 'cod' THEN
+  IF v_payment_method = 'cod' THEN
     v_payment_status := 'cod_pending';
-  ELSIF p_payment_method = 'manual' THEN
+  ELSIF v_payment_method = 'manual' THEN
     v_payment_status := 'awaiting_contact';
   ELSE
     v_payment_status := 'unpaid';
@@ -153,7 +193,7 @@ BEGIN
 
   v_order_number := 'ORD-' || to_char(now(), 'YYMMDD') || '-' || substr(md5(random()::text), 1, 6);
 
-  -- 5. Insert order record atomically
+  -- 7. Insert order record atomically
   INSERT INTO public.orders (
     user_id,
     order_number,
@@ -169,13 +209,18 @@ BEGIN
     v_total_amount,
     p_shipping_address_id,
     'pending',
-    p_payment_method,
+    v_payment_method,
     v_payment_status,
     p_upi_utr
   ) RETURNING id INTO v_order_id;
 
-  -- 6. Insert order items with trusted server prices
-  FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(product_id int, quantity int)
+  -- 8. Insert order items with trusted server prices
+  FOR v_item IN 
+    SELECT 
+      product_id, 
+      SUM(quantity)::int AS quantity
+    FROM jsonb_to_recordset(p_items) AS x(product_id int, quantity int)
+    GROUP BY product_id
   LOOP
     SELECT price INTO v_product FROM public.products WHERE id = v_item.product_id;
 
@@ -205,3 +250,4 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.create_authoritative_order(jsonb, uuid, text, text) TO authenticated;
+
