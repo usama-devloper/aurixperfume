@@ -131,69 +131,50 @@ export const useOrders = () => {
       const { data: rpcRes, error: rpcErr } = await supabase
         .rpc("create_authoritative_order", rpcPayload);
 
-      if (!rpcErr && rpcRes && rpcRes.order_id) {
-        fetchOrders();
-        return {
-          id: rpcRes.order_id,
-          order_number: rpcRes.order_number,
-          total_amount: rpcRes.total_amount,
-          status: "pending",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          payment_status: rpcRes.payment_status,
-          payment_method: paymentOptions?.payment_method ?? null,
-          tracking_number: null,
-          shipping_carrier: null,
-          estimated_delivery: null,
-        } as unknown as Order;
+      if (rpcErr || !rpcRes?.order_id) {
+        // Safe diagnostic logging: log RPC error code/message without customer/payment secrets
+        console.error("Authoritative order RPC failed:", {
+          message: rpcErr?.message,
+          code: rpcErr?.code,
+          details: rpcErr?.details,
+          hasOrderId: !!rpcRes?.order_id,
+        });
+
+        // Map errors to generic, actionable customer-facing messages
+        let userFacingError = "We could not complete your order. Please review your cart and try again.";
+        const rawMsg = (rpcErr?.message || "").toLowerCase();
+        if (rawMsg.includes("out of stock")) {
+          userFacingError = "One or more items in your cart is currently out of stock. Please update your cart and try again.";
+        } else if (rawMsg.includes("empty") || rawMsg.includes("invalid quantity")) {
+          userFacingError = "Please check your cart items and quantities before placing your order.";
+        } else if (rawMsg.includes("not found")) {
+          userFacingError = "A product in your cart is no longer available. Please refresh your cart.";
+        } else if (rawMsg.includes("authentication required") || rawMsg.includes("jwt")) {
+          userFacingError = "Your session has expired. Please sign in again to complete your order.";
+        }
+
+        throw new Error(userFacingError);
       }
 
-      // 2. Client-side fallback if migration not yet applied
-      // Ensure user exists in public.users to prevent foreign key constraint violations
-      await supabase
-        .from("users")
-        .upsert({ id: user.id, email: user.email || "" }, { onConflict: "id" });
-
-      const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
-
-      const { data: orderData, error: orderError } = await supabase
-        .from("orders")
-        .insert([{
-          user_id: user.id,
-          order_number: orderNumber,
-          total_amount: totalAmount,
-          shipping_address_id: shippingAddressId,
-          status: "pending",
-          payment_method: paymentOptions?.payment_method ?? null,
-          payment_status: paymentOptions?.payment_status ?? "unpaid",
-          upi_utr: paymentOptions?.upi_utr ?? null,
-          payment_reference: paymentOptions?.payment_reference ?? null,
-        }])
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      const orderItems = cartItems.map(item => ({
-        order_id: orderData.id,
-        product_id: item.product.id,
-        quantity: item.quantity,
-        unit_price: item.product.price
-      }));
-
-      const { error: itemsError } = await supabase
-        .from("order_items")
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
-
       fetchOrders();
-      return orderData;
+      return {
+        id: rpcRes.order_id,
+        order_number: rpcRes.order_number,
+        total_amount: rpcRes.total_amount,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        payment_status: rpcRes.payment_status,
+        payment_method: paymentOptions?.payment_method ?? null,
+        tracking_number: null,
+        shipping_carrier: null,
+        estimated_delivery: null,
+      } as unknown as Order;
     } catch (error: any) {
-      console.error("Error placing order:", error.message);
+      console.error("Order placement error:", error?.message || "Unknown error");
       toast({
-        title: "Error",
-        description: "Failed to place order",
+        title: "Order Placement Issue",
+        description: error?.message || "We could not place your order. Please try again.",
         variant: "destructive",
       });
       throw error;

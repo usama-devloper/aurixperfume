@@ -11,17 +11,14 @@ DROP POLICY IF EXISTS "Users can insert own orders" ON public.orders;
 DROP POLICY IF EXISTS "Admins can update orders" ON public.orders;
 DROP POLICY IF EXISTS "Order tracking lookup" ON public.orders;
 
+-- Disallow direct client-side INSERT on orders table (must use trusted server RPC create_authoritative_order / create_order_atomic)
+REVOKE INSERT ON public.orders FROM anon, authenticated;
+
 -- Policy: Authenticated users can view only their own orders
 CREATE POLICY "Users can view own orders"
 ON public.orders FOR SELECT
 TO authenticated
 USING (auth.uid() = user_id OR public.is_admin());
-
--- Policy: Authenticated users can create orders for themselves
-CREATE POLICY "Users can insert own orders"
-ON public.orders FOR INSERT
-TO authenticated
-WITH CHECK (auth.uid() = user_id);
 
 -- Policy: Only admins can update order status, carrier, tracking info, and payments
 CREATE POLICY "Admins can update orders"
@@ -37,6 +34,9 @@ DROP POLICY IF EXISTS "Users can view own order items" ON public.order_items;
 DROP POLICY IF EXISTS "Users can insert own order items" ON public.order_items;
 DROP POLICY IF EXISTS "Admins can manage order items" ON public.order_items;
 
+-- Disallow direct client-side INSERT on order_items table
+REVOKE INSERT ON public.order_items FROM anon, authenticated;
+
 -- Policy: Users can view order items for orders they own, or admins can view all
 CREATE POLICY "Users can view own order items"
 ON public.order_items FOR SELECT
@@ -46,18 +46,6 @@ USING (
     SELECT 1 FROM public.orders o
     WHERE o.id = order_items.order_id
     AND (o.user_id = auth.uid() OR public.is_admin())
-  )
-);
-
--- Policy: Users can insert order items when creating their order
-CREATE POLICY "Users can insert own order items"
-ON public.order_items FOR INSERT
-TO authenticated
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.orders o
-    WHERE o.id = order_items.order_id
-    AND o.user_id = auth.uid()
   )
 );
 

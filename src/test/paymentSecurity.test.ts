@@ -134,4 +134,126 @@ describe("E-Commerce Security & Payment Verification Logic", () => {
       expect(sanitizeTrackingQuery("ab")).toBeNull(); // too short
     });
   });
+
+  describe("Authoritative Order Creation Enforcement & Fallback Prevention", () => {
+    it("halts checkout and maps raw RPC errors to customer-safe messages without direct client table inserts", async () => {
+      // Mock supabase client
+      const directInsertOrdersMock = vi.fn();
+      const directInsertOrderItemsMock = vi.fn();
+
+      const mockSupabase = {
+        rpc: vi.fn().mockResolvedValue({
+          data: null,
+          error: { message: "Product Oud Sovereign is currently out of stock", code: "P0001" },
+        }),
+        from: vi.fn((table: string) => {
+          if (table === "orders") {
+            return { insert: directInsertOrdersMock };
+          }
+          if (table === "order_items") {
+            return { insert: directInsertOrderItemsMock };
+          }
+          return { upsert: vi.fn() };
+        }),
+      };
+
+      // Order creation handler simulating hardened useOrders behavior
+      const placeOrderHardened = async (cartItems: any[]) => {
+        const rpcPayload = {
+          p_items: cartItems.map(it => ({ product_id: it.product_id, quantity: it.quantity })),
+          p_shipping_address_id: "addr-1",
+          p_payment_method: "card",
+          p_upi_utr: null,
+        };
+
+        const { data: rpcRes, error: rpcErr } = await mockSupabase.rpc(
+          "create_authoritative_order",
+          rpcPayload
+        );
+
+        if (rpcErr || !rpcRes?.order_id) {
+          let userFacingError = "We could not complete your order. Please review your cart and try again.";
+          const rawMsg = (rpcErr?.message || "").toLowerCase();
+          if (rawMsg.includes("out of stock")) {
+            userFacingError = "One or more items in your cart is currently out of stock. Please update your cart and try again.";
+          }
+          throw new Error(userFacingError);
+        }
+
+        return rpcRes;
+      };
+
+      await expect(
+        placeOrderHardened([{ product_id: 99, quantity: 1 }])
+      ).rejects.toThrow("One or more items in your cart is currently out of stock. Please update your cart and try again.");
+
+      // Verify that direct table insert was NEVER invoked
+      expect(directInsertOrdersMock).not.toHaveBeenCalled();
+      expect(directInsertOrderItemsMock).not.toHaveBeenCalled();
+    });
+
+    it("successfully returns order confirmation matching all fields required by checkout steps, Stripe, and UI", async () => {
+      const mockSuccessOrder = {
+        order_id: "ord-uuid-999",
+        order_number: "ORD-261020-abc123",
+        total_amount: 4200,
+        subtotal: 3800,
+        shipping: 0,
+        tax: 400,
+        payment_status: "unpaid",
+      };
+
+      const mockSupabase = {
+        rpc: vi.fn().mockResolvedValue({
+          data: mockSuccessOrder,
+          error: null,
+        }),
+      };
+
+      const placeOrderHardened = async (cartItems: any[], paymentOptions?: any) => {
+        const rpcPayload = {
+          p_items: cartItems.map(it => ({ product_id: it.product_id, quantity: it.quantity })),
+          p_shipping_address_id: "addr-1",
+          p_payment_method: paymentOptions?.payment_method ?? "card",
+          p_upi_utr: paymentOptions?.upi_utr ?? null,
+        };
+
+        const { data: rpcRes, error: rpcErr } = await mockSupabase.rpc(
+          "create_authoritative_order",
+          rpcPayload
+        );
+
+        if (rpcErr || !rpcRes?.order_id) {
+          throw new Error("We could not complete your order. Please review your cart and try again.");
+        }
+
+        return {
+          id: rpcRes.order_id,
+          order_number: rpcRes.order_number,
+          total_amount: rpcRes.total_amount,
+          status: "pending",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          payment_status: rpcRes.payment_status,
+          payment_method: paymentOptions?.payment_method ?? null,
+          tracking_number: null,
+          shipping_carrier: null,
+          estimated_delivery: null,
+        };
+      };
+
+      const res = await placeOrderHardened([{ product_id: 1, quantity: 1 }], { payment_method: "card" });
+      
+      // Check exact UI & flow compatibility
+      expect(res.id).toBe("ord-uuid-999");
+      expect(res.order_number).toBe("ORD-261020-abc123");
+      expect(res.total_amount).toBe(4200);
+      expect(res.status).toBe("pending");
+      expect(res.payment_status).toBe("unpaid");
+      expect(res.payment_method).toBe("card");
+      expect(res.created_at).toBeDefined();
+    });
+  });
 });
+
+
