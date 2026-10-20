@@ -49,7 +49,8 @@ BEGIN
 END;
 $$;
 
--- Grant execution to anon and authenticated roles
+-- Revoke default public execution and grant strictly to anon and authenticated roles
+REVOKE ALL ON FUNCTION public.track_order(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.track_order(text) TO anon, authenticated;
 
 -- 3. Create server-authoritative atomic order placement function

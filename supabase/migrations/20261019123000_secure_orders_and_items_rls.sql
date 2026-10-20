@@ -17,12 +17,6 @@ ON public.orders FOR SELECT
 TO authenticated
 USING (auth.uid() = user_id OR public.is_admin());
 
--- Policy: Allow specific lookup for Order Tracking by order_number or tracking_number (Exact match lookup)
-CREATE POLICY "Order tracking lookup"
-ON public.orders FOR SELECT
-TO anon, authenticated
-USING (true); -- Filtered explicitly by exact order_number or tracking_number in client queries
-
 -- Policy: Authenticated users can create orders for themselves
 CREATE POLICY "Users can insert own orders"
 ON public.orders FOR INSERT
