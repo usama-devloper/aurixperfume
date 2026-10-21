@@ -10,6 +10,8 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useRateLimiter } from "@/hooks/useRateLimiter";
 import { Clock, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
+import { sanitizeRedirectPath, getSafeOAuthRedirectUrl } from "@/utils/authRedirect";
 
 const Auth = () => {
   const { user, signIn, signUp } = useAuth();
@@ -21,12 +23,15 @@ const Auth = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [defaultTab, setDefaultTab] = useState("signin");
   const [resendCooldown, setResendCooldown] = useState(0);
   const [lastSentEmail, setLastSentEmail] = useState("");
   
-  const redirect = searchParams.get("redirect") || "/";
+  const rawRedirect = searchParams.get("redirect");
+  const safeRedirect = sanitizeRedirectPath(rawRedirect, "/");
+
   
   // Rate limiting for password reset (3 attempts per 15 minutes)
   const resetRateLimit = useRateLimiter({
@@ -70,8 +75,35 @@ const Auth = () => {
 
   // Redirect if user is already logged in
   if (user) {
-    return <Navigate to={redirect} />;
+    return <Navigate to={safeRedirect} />;
   }
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    try {
+      const redirectTo = getSafeOAuthRedirectUrl(rawRedirect);
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      toast({
+        title: "Google Sign-In Error",
+        description: error?.message || "Could not initiate Google Sign-In. Please try again.",
+        variant: "destructive",
+      });
+      setIsGoogleLoading(false);
+    }
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,148 +303,184 @@ const Auth = () => {
             </TabsList>
 
             <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
-                  <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="your.email@example.com"
-                    required
-                    className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    placeholder="••••••••"
-                    required
-                    className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full bg-perfume-gold text-black hover:bg-yellow-600 rounded-none uppercase tracking-widest text-xs font-bold h-12 mt-4" 
+              <div className="space-y-4">
+                <GoogleAuthButton
+                  onClick={handleGoogleSignIn}
+                  isLoading={isGoogleLoading}
                   disabled={isLoading}
-                >
-                  {isLoading ? "Signing in..." : "Sign In"}
-                </Button>
-                <div className="flex flex-col gap-2 mt-4 text-center text-sm">
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-perfume-gold hover:text-white underline-offset-4 hover:underline h-auto p-0"
-                    onClick={() => setDefaultTab("forgot")}
+                  text="Continue with Google"
+                />
+
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-neutral-800" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                    <span className="bg-neutral-900 px-3 text-neutral-500 font-semibold">Or with email</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
+                    <Input
+                      id="signin-email"
+                      type="email"
+                      placeholder="your.email@example.com"
+                      required
+                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <Input
+                      id="signin-password"
+                      type="password"
+                      placeholder="••••••••"
+                      required
+                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-perfume-gold text-black hover:bg-yellow-600 rounded-none uppercase tracking-widest text-xs font-bold h-12 mt-4" 
+                    disabled={isLoading || isGoogleLoading}
                   >
-                    Forgot your password?
+                    {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
-                  <div className="text-gray-400">
-                    Don't have an account?{" "}
+                  <div className="flex flex-col gap-2 mt-4 text-center text-sm">
                     <Button
                       type="button"
                       variant="link"
                       className="text-perfume-gold hover:text-white underline-offset-4 hover:underline h-auto p-0"
-                      onClick={() => setDefaultTab("signup")}
+                      onClick={() => setDefaultTab("forgot")}
                     >
-                      Create account
+                      Forgot your password?
                     </Button>
+                    <div className="text-gray-400">
+                      Don't have an account?{" "}
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="text-perfume-gold hover:text-white underline-offset-4 hover:underline h-auto p-0"
+                        onClick={() => setDefaultTab("signup")}
+                      >
+                        Create account
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </form>
+                </form>
+              </div>
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-firstname">First Name</Label>
-                    <Input
-                      id="signup-firstname"
-                      type="text"
-                      placeholder="John"
-                      required
-                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-lastname">Last Name</Label>
-                    <Input
-                      id="signup-lastname"
-                      type="text"
-                      placeholder="Doe"
-                      required
-                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="your.email@example.com"
-                    required
-                    className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    required
-                    minLength={6}
-                    className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500">Password must be at least 6 characters</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password">Confirm Password</Label>
-                  <Input
-                    id="signup-confirm-password"
-                    type="password"
-                    placeholder="••••••••"
-                    required
-                    minLength={6}
-                    className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full bg-perfume-gold text-black hover:bg-yellow-600 rounded-none uppercase tracking-widest text-xs font-bold h-12 mt-4" 
+              <div className="space-y-4">
+                <GoogleAuthButton
+                  onClick={handleGoogleSignIn}
+                  isLoading={isGoogleLoading}
                   disabled={isLoading}
-                >
-                  {isLoading ? "Creating account..." : "Create Account"}
-                </Button>
-                <div className="text-center mt-4 text-sm text-gray-400">
-                  Already have an account?{" "}
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-perfume-gold hover:text-white underline-offset-4 hover:underline h-auto p-0"
-                    onClick={() => setDefaultTab("signin")}
-                  >
-                    Sign in
-                  </Button>
+                  text="Continue with Google"
+                />
+
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-neutral-800" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                    <span className="bg-neutral-900 px-3 text-neutral-500 font-semibold">Or with email</span>
+                  </div>
                 </div>
-              </form>
+
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-firstname">First Name</Label>
+                      <Input
+                        id="signup-firstname"
+                        type="text"
+                        placeholder="John"
+                        required
+                        className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-lastname">Last Name</Label>
+                      <Input
+                        id="signup-lastname"
+                        type="text"
+                        placeholder="Doe"
+                        required
+                        className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="your.email@example.com"
+                      required
+                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <p className="text-xs text-gray-500">Password must be at least 6 characters</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirm-password">Confirm Password</Label>
+                    <Input
+                      id="signup-confirm-password"
+                      type="password"
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-perfume-gold text-black hover:bg-yellow-600 rounded-none uppercase tracking-widest text-xs font-bold h-12 mt-4" 
+                    disabled={isLoading || isGoogleLoading}
+                  >
+                    {isLoading ? "Creating account..." : "Create Account"}
+                  </Button>
+                  <div className="text-center mt-4 text-sm text-gray-400">
+                    Already have an account?{" "}
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-perfume-gold hover:text-white underline-offset-4 hover:underline h-auto p-0"
+                      onClick={() => setDefaultTab("signin")}
+                    >
+                      Sign in
+                    </Button>
+                  </div>
+                </form>
+              </div>
             </TabsContent>
 
             <TabsContent value="forgot">
