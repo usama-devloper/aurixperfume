@@ -1,15 +1,20 @@
 -- AURIX Perfume: Server-Authoritative Atomic Order Creation & Secure Order Tracking
 -- Removes permissive USING (true) lookup policy and provides secure database function
 
--- 1. DROP the permissive public lookup policy
+-- 1. DROP the permissive public lookup policy and duplicate SELECT policies
 DROP POLICY IF EXISTS "Order tracking lookup" ON public.orders;
+DROP POLICY IF EXISTS "Users can view own orders" ON public.orders;
+DROP POLICY IF EXISTS "Users can view their own orders" ON public.orders;
+DROP POLICY IF EXISTS "Orders are viewable by owner" ON public.orders;
 
 -- Ensure orders SELECT is strictly constrained to authenticated owner or admin
-DROP POLICY IF EXISTS "Users can view own orders" ON public.orders;
 CREATE POLICY "Users can view own orders"
 ON public.orders FOR SELECT
 TO authenticated
 USING (auth.uid() = user_id OR public.is_admin());
+
+-- Ensure cryptographic extensions are enabled for gen_random_bytes()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 2. Create a secure, narrowly-scoped function for Order Tracking
 -- Returns ONLY tracking details (no user_id, no payment_reference, no internal data)
@@ -25,14 +30,33 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
+DECLARE
+  v_clean text;
 BEGIN
-  -- Strict input validation: must be exact alphanumeric / hyphen query between 4 and 40 characters
-  IF p_query IS NULL OR length(trim(p_query)) < 4 OR length(trim(p_query)) > 40 THEN
+  IF p_query IS NULL THEN
     RETURN;
   END IF;
 
+  v_clean := trim(p_query);
+
+  -- Input hygiene: reject empty queries or strings with dangerous/invalid characters
+  IF length(v_clean) = 0 OR length(v_clean) > 40 OR v_clean !~ '^[A-Za-z0-9\-]+$' THEN
+    RETURN;
+  END IF;
+
+  -- Security Logic:
+  -- 1. High-Entropy Order Numbers (ORD-YYMMDD-16hex):
+  --    Strict regex: '^ORD-[0-9]{6}-[0-9a-fA-F]{16}$'
+  --    Safe for anonymous callers because 16 hex chars (64 bits of entropy) cannot be guessed or enumerated.
+  -- 2. Legacy Order Numbers (ORD-YYMMDD-6hex):
+  --    Strict regex: '^ORD-[0-9]{6}-[0-9a-fA-F]{6}$'
+  --    Contains only ~16.7M combinations per date. Anonymous lookups are REJECTED to prevent enumeration.
+  --    Requires authenticated order owner (auth.uid() = o.user_id) or an administrator (public.is_admin()).
+  -- 3. Carrier Tracking Numbers:
+  --    May follow sequential/predictable formats from logistics partners.
+  --    Requires authenticated order owner (auth.uid() = o.user_id) or an administrator (public.is_admin()).
   RETURN QUERY
   SELECT 
     o.order_number,
@@ -43,8 +67,15 @@ BEGIN
     o.created_at,
     o.updated_at
   FROM public.orders o
-  WHERE o.order_number = trim(p_query)
-     OR (o.tracking_number IS NOT NULL AND o.tracking_number = trim(p_query))
+  WHERE 
+    -- Case 1: Unguessable 16-hex format (open to any caller holding the exact token)
+    (o.order_number = v_clean AND v_clean ~* '^ORD-[0-9]{6}-[0-9a-f]{16}$')
+    OR
+    -- Case 2: Legacy 6-hex format (strictly owner or admin only)
+    (o.order_number = v_clean AND v_clean ~* '^ORD-[0-9]{6}-[0-9a-f]{6}$' AND (auth.uid() = o.user_id OR public.is_admin()))
+    OR
+    -- Case 3: Carrier tracking number lookup (strictly owner or admin only)
+    (o.tracking_number IS NOT NULL AND o.tracking_number = v_clean AND (auth.uid() = o.user_id OR public.is_admin()))
   LIMIT 1;
 END;
 $$;
@@ -64,14 +95,14 @@ CREATE OR REPLACE FUNCTION public.create_authoritative_order(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_user_id uuid;
-  v_user_email text;
   v_order_id uuid;
   v_order_number text;
   v_item record;
+  v_raw_item jsonb;
   v_product record;
   v_subtotal numeric := 0;
   v_shipping numeric := 0;
@@ -91,13 +122,6 @@ BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'Authentication required to create order';
   END IF;
-
-  SELECT email INTO v_user_email FROM auth.users WHERE id = v_user_id;
-
-  -- Ensure user profile/record exists
-  INSERT INTO public.users (id, email)
-  VALUES (v_user_id, COALESCE(v_user_email, ''))
-  ON CONFLICT (id) DO NOTHING;
 
   -- 2. Verify Shipping Address Ownership
   -- Orders require a valid shipping address owned by the authenticated user
@@ -123,36 +147,72 @@ BEGIN
     RAISE EXCEPTION 'Order items must be a non-empty array with at most 50 items';
   END IF;
 
-  -- 5. Read site settings with safe defaults (handles 0 rows and non-numeric values safely)
+  -- 5. Read site settings with safe defaults and sensible bounds
+  -- Bounds: shipping_fee in [0, 10000], free_shipping_threshold in [0, 100000], tax_rate in [0.00, 1.00]
   SELECT value INTO v_raw_fee FROM public.site_settings WHERE key = 'shipping_fee';
-  IF v_raw_fee IS NOT NULL AND v_raw_fee ~ '^[0-9]+(\.[0-9]+)?$' THEN
-    v_shipping_fee := v_raw_fee::numeric;
+  IF v_raw_fee IS NOT NULL AND length(v_raw_fee) <= 8 AND v_raw_fee ~ '^[0-9]+(\.[0-9]{1,2})?$' THEN
+    IF v_raw_fee::numeric >= 0 AND v_raw_fee::numeric <= 10000 THEN
+      v_shipping_fee := v_raw_fee::numeric;
+    END IF;
   END IF;
 
   SELECT value INTO v_raw_thresh FROM public.site_settings WHERE key = 'free_shipping_threshold';
-  IF v_raw_thresh IS NOT NULL AND v_raw_thresh ~ '^[0-9]+(\.[0-9]+)?$' THEN
-    v_free_shipping_threshold := v_raw_thresh::numeric;
+  IF v_raw_thresh IS NOT NULL AND length(v_raw_thresh) <= 8 AND v_raw_thresh ~ '^[0-9]+(\.[0-9]{1,2})?$' THEN
+    IF v_raw_thresh::numeric >= 0 AND v_raw_thresh::numeric <= 100000 THEN
+      v_free_shipping_threshold := v_raw_thresh::numeric;
+    END IF;
   END IF;
 
   SELECT value INTO v_raw_tax FROM public.site_settings WHERE key = 'tax_rate';
-  IF v_raw_tax IS NOT NULL AND v_raw_tax ~ '^[0-9]+(\.[0-9]+)?$' THEN
-    v_tax_rate := v_raw_tax::numeric;
+  IF v_raw_tax IS NOT NULL AND length(v_raw_tax) <= 6 AND v_raw_tax ~ '^[0-9]+(\.[0-9]{1,4})?$' THEN
+    IF v_raw_tax::numeric >= 0 AND v_raw_tax::numeric <= 1.0000 THEN
+      v_tax_rate := v_raw_tax::numeric;
+    END IF;
   END IF;
 
-  -- 6. Calculate subtotal server-side using trusted product records & aggregate duplicate product IDs
+  -- 6. Validate each input item individually BEFORE aggregation
+  -- Ensures product_id and quantity are strictly positive integers, preventing nulls, non-integers,
+  -- zero, negative cancellations (e.g. quantity -2 cancelling +5), and extreme quantities.
+  FOR v_raw_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    IF jsonb_typeof(v_raw_item) <> 'object' THEN
+      RAISE EXCEPTION 'Each item in order items must be an object';
+    END IF;
+
+    -- Validate product_id field: must be present, non-null, and integer > 0
+    IF NOT (v_raw_item ? 'product_id') OR v_raw_item->'product_id' IS NULL OR jsonb_typeof(v_raw_item->'product_id') <> 'number' THEN
+      RAISE EXCEPTION 'Invalid or missing product_id in order items';
+    END IF;
+
+    IF (v_raw_item->>'product_id') !~ '^[1-9][0-9]{0,8}$' THEN
+      RAISE EXCEPTION 'Product ID must be a positive integer';
+    END IF;
+
+    -- Validate quantity field: must be present, non-null, and integer in [1, 99]
+    IF NOT (v_raw_item ? 'quantity') OR v_raw_item->'quantity' IS NULL OR jsonb_typeof(v_raw_item->'quantity') <> 'number' THEN
+      RAISE EXCEPTION 'Invalid or missing quantity in order items';
+    END IF;
+
+    IF (v_raw_item->>'quantity') !~ '^[1-9][0-9]?$' THEN
+      RAISE EXCEPTION 'Item quantity must be an integer between 1 and 99';
+    END IF;
+  END LOOP;
+
+  -- 7. Calculate subtotal server-side using trusted product records & aggregate duplicate product IDs
+  -- bigint is used in SUM() to prevent integer overflow during summation, then bounded to [1, 99]
   FOR v_item IN 
     SELECT 
-      product_id, 
-      SUM(quantity)::int AS quantity
-    FROM jsonb_to_recordset(p_items) AS x(product_id int, quantity int)
-    GROUP BY product_id
+      (elem->>'product_id')::int AS product_id, 
+      SUM((elem->>'quantity')::bigint) AS total_quantity
+    FROM jsonb_array_elements(p_items) AS elem
+    GROUP BY (elem->>'product_id')::int
   LOOP
     IF v_item.product_id IS NULL OR v_item.product_id <= 0 THEN
       RAISE EXCEPTION 'Invalid product ID in order items';
     END IF;
 
-    IF v_item.quantity IS NULL OR v_item.quantity <= 0 OR v_item.quantity > 99 THEN
-      RAISE EXCEPTION 'Invalid quantity % for product ID %', v_item.quantity, v_item.product_id;
+    IF v_item.total_quantity IS NULL OR v_item.total_quantity <= 0 OR v_item.total_quantity > 99 THEN
+      RAISE EXCEPTION 'Aggregate quantity % for product ID % exceeds allowable limit (1-99)', v_item.total_quantity, v_item.product_id;
     END IF;
 
     -- Row lock for read consistency during checkout
@@ -169,7 +229,7 @@ BEGIN
       RAISE EXCEPTION 'Product % is currently out of stock', v_product.name;
     END IF;
 
-    v_subtotal := v_subtotal + (v_product.price * v_item.quantity);
+    v_subtotal := v_subtotal + (v_product.price * v_item.total_quantity::int);
   END LOOP;
 
   -- Calculate shipping & tax
@@ -191,7 +251,8 @@ BEGIN
     v_payment_status := 'unpaid';
   END IF;
 
-  v_order_number := 'ORD-' || to_char(now(), 'YYMMDD') || '-' || substr(md5(random()::text), 1, 6);
+  -- High-entropy cryptographically secure order identifier (16 hex chars = 1.84 x 10^19 combinations)
+  v_order_number := 'ORD-' || to_char(now(), 'YYMMDD') || '-' || encode(gen_random_bytes(8), 'hex');
 
   -- 7. Insert order record atomically
   INSERT INTO public.orders (
@@ -217,10 +278,10 @@ BEGIN
   -- 8. Insert order items with trusted server prices
   FOR v_item IN 
     SELECT 
-      product_id, 
-      SUM(quantity)::int AS quantity
-    FROM jsonb_to_recordset(p_items) AS x(product_id int, quantity int)
-    GROUP BY product_id
+      (elem->>'product_id')::int AS product_id, 
+      SUM((elem->>'quantity')::bigint) AS total_quantity
+    FROM jsonb_array_elements(p_items) AS elem
+    GROUP BY (elem->>'product_id')::int
   LOOP
     SELECT price INTO v_product FROM public.products WHERE id = v_item.product_id;
 
@@ -232,7 +293,7 @@ BEGIN
     ) VALUES (
       v_order_id,
       v_item.product_id,
-      v_item.quantity,
+      v_item.total_quantity::int,
       v_product.price
     );
   END LOOP;
@@ -249,5 +310,8 @@ BEGIN
 END;
 $$;
 
+-- Revoke default public execution and grant strictly to authenticated role
+REVOKE ALL ON FUNCTION public.create_authoritative_order(jsonb, uuid, text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_authoritative_order(jsonb, uuid, text, text) TO authenticated;
+
 

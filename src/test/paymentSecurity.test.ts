@@ -336,8 +336,152 @@ describe("E-Commerce Security & Payment Verification Logic", () => {
       expect(aggregated[1]).toBe(5);
       expect(aggregated[2]).toBe(1);
     });
+
+    it("verifies item validation logic rejects invalid, zero, negative, and over-limit quantities before and after aggregation", () => {
+      const validateItems = (rawItems: any[]): { valid: boolean; error?: string; aggregated?: Record<number, number> } => {
+        if (!Array.isArray(rawItems) || rawItems.length === 0 || rawItems.length > 50) {
+          return { valid: false, error: "Order items must be a non-empty array with at most 50 items" };
+        }
+
+        // Pre-aggregation check on each raw item (mimicking plpgsql loop)
+        for (const item of rawItems) {
+          if (!item || typeof item !== "object") {
+            return { valid: false, error: "Each item in order items must be an object" };
+          }
+          if (item.product_id === undefined || item.product_id === null || typeof item.product_id !== "number") {
+            return { valid: false, error: "Invalid or missing product_id in order items" };
+          }
+          if (!/^[1-9][0-9]{0,8}$/.test(String(item.product_id))) {
+            return { valid: false, error: "Product ID must be a positive integer" };
+          }
+          if (item.quantity === undefined || item.quantity === null || typeof item.quantity !== "number") {
+            return { valid: false, error: "Invalid or missing quantity in order items" };
+          }
+          if (!/^[1-9][0-9]?$/.test(String(item.quantity))) {
+            return { valid: false, error: "Item quantity must be an integer between 1 and 99" };
+          }
+        }
+
+        // Aggregation check with safe bigint sum and bound check <= 99
+        const agg: Record<number, number> = {};
+        for (const item of rawItems) {
+          const pid = Number(item.product_id);
+          const qty = Number(item.quantity);
+          agg[pid] = (agg[pid] || 0) + qty;
+        }
+
+        for (const pidStr of Object.keys(agg)) {
+          const pid = Number(pidStr);
+          const totalQty = agg[pid];
+          if (totalQty <= 0 || totalQty > 99) {
+            return { valid: false, error: `Aggregate quantity ${totalQty} exceeds limit (1-99)` };
+          }
+        }
+
+        return { valid: true, aggregated: agg };
+      };
+
+      // Valid items
+      expect(validateItems([{ product_id: 1, quantity: 5 }, { product_id: 1, quantity: 10 }]).valid).toBe(true);
+
+      // Negative quantity cannot cancel positive quantity
+      const negativeAttempt = validateItems([
+        { product_id: 1, quantity: 10 },
+        { product_id: 1, quantity: -5 },
+      ]);
+      expect(negativeAttempt.valid).toBe(false);
+      expect(negativeAttempt.error).toBe("Item quantity must be an integer between 1 and 99");
+
+      // Zero quantity rejected
+      expect(validateItems([{ product_id: 1, quantity: 0 }]).valid).toBe(false);
+
+      // Non-integer float quantity rejected
+      expect(validateItems([{ product_id: 1, quantity: 1.5 }]).valid).toBe(false);
+
+      // Missing or null quantity rejected
+      expect(validateItems([{ product_id: 1, quantity: null }]).valid).toBe(false);
+      expect(validateItems([{ product_id: 1 }]).valid).toBe(false);
+
+      // Missing or non-positive product_id rejected
+      expect(validateItems([{ product_id: 0, quantity: 2 }]).valid).toBe(false);
+      expect(validateItems([{ product_id: -1, quantity: 2 }]).valid).toBe(false);
+      expect(validateItems([{ product_id: null, quantity: 2 }]).valid).toBe(false);
+
+      // Aggregate quantity exceeding 99 rejected
+      const overLimitAttempt = validateItems([
+        { product_id: 1, quantity: 60 },
+        { product_id: 1, quantity: 50 },
+      ]);
+      expect(overLimitAttempt.valid).toBe(false);
+      expect(overLimitAttempt.error).toContain("exceeds limit (1-99)");
+    });
+
+    it("verifies pre-aggregation item validation and safe bigint summation exist in Migration 2 SQL file", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const migration2Path = path.resolve(__dirname, "../../supabase/migrations/20261019124000_authoritative_orders_and_secure_tracking.sql");
+      const migration2Sql = fs.readFileSync(migration2Path, "utf-8");
+
+      // Verify pre-aggregation loop over jsonb_array_elements exists
+      expect(migration2Sql).toMatch(/FOR\s+v_raw_item\s+IN\s+SELECT\s+\*\s+FROM\s+jsonb_array_elements\(p_items\)/i);
+
+      // Verify positive integer regex validation on raw item quantity and product_id
+      expect(migration2Sql).toMatch(/\(v_raw_item->>'quantity'\)\s+!~\s+'\^\[1-9\]\[0-9\]\?\$'/i);
+      expect(migration2Sql).toMatch(/\(v_raw_item->>'product_id'\)\s+!~\s+'\^\[1-9\]\[0-9\]\{0,8\}\$'/i);
+
+      // Verify SUM uses bigint casting to protect against integer overflow before bounding to 99
+      expect(migration2Sql).toMatch(/SUM\(\(elem->>'quantity'\)::bigint\)\s+AS\s+total_quantity/i);
+      expect(migration2Sql).toMatch(/v_item\.total_quantity\s+>\s+99/i);
+    });
+
+    it("verifies all live database legacy policy names have DROP POLICY IF EXISTS statements on correct tables in Migration 1", async () => {
+      // Read the actual SQL file content from disk
+      const fs = await import("fs");
+      const path = await import("path");
+      const migration1Path = path.resolve(__dirname, "../../supabase/migrations/20261019123000_secure_orders_and_items_rls.sql");
+      const migration1Sql = fs.readFileSync(migration1Path, "utf-8");
+
+      // Verify each known live legacy policy is explicitly dropped on its corresponding table
+      const expectedDrops = [
+        { policy: "Users can create their own orders", table: "public.orders" },
+        { policy: "Users can update their own orders", table: "public.orders" },
+        { policy: "Users can view their own orders", table: "public.orders" },
+        { policy: "Users can create order items for their orders", table: "public.order_items" },
+        { policy: "Admins can update order items", table: "public.order_items" },
+      ];
+
+      for (const { policy, table } of expectedDrops) {
+        const dropPattern = new RegExp(`DROP\\s+POLICY\\s+IF\\s+EXISTS\\s+"${policy}"\\s+ON\\s+${table}`, "i");
+        expect(dropPattern.test(migration1Sql)).toBe(true);
+      }
+    });
+
+    it("verifies function EXECUTE revocations and grants in Migration 2 SQL file", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const migration2Path = path.resolve(__dirname, "../../supabase/migrations/20261019124000_authoritative_orders_and_secure_tracking.sql");
+      const migration2Sql = fs.readFileSync(migration2Path, "utf-8");
+
+      // Verify create_authoritative_order revokes ALL from PUBLIC and anon, then grants to authenticated
+      expect(migration2Sql).toMatch(
+        /REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.create_authoritative_order\(jsonb,\s*uuid,\s*text,\s*text\)\s+FROM\s+PUBLIC,\s*anon;/i
+      );
+      expect(migration2Sql).toMatch(
+        /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.create_authoritative_order\(jsonb,\s*uuid,\s*text,\s*text\)\s+TO\s+authenticated;/i
+      );
+
+      // Verify track_order revokes ALL from PUBLIC, then grants to anon and authenticated
+      expect(migration2Sql).toMatch(
+        /REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.track_order\(text\)\s+FROM\s+PUBLIC;/i
+      );
+      expect(migration2Sql).toMatch(
+        /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.track_order\(text\)\s+TO\s+anon,\s*authenticated;/i
+      );
+    });
   });
 });
+
+
 
 
 
