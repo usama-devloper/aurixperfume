@@ -180,5 +180,39 @@ describe("Google OAuth & Safe Redirect Implementation", () => {
         expect(googleButton).not.toBeDisabled();
       });
     });
+
+    it("renders verifying session indicator in Auth when loading is true and does not render forms", () => {
+      mockAuth.loading = true;
+      mockAuth.user = null;
+
+      render(
+        <MemoryRouter initialEntries={["/auth?redirect=/profile"]}>
+          <Auth />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText(/verifying session\.\.\./i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument();
+
+      // Reset
+      mockAuth.loading = false;
+    });
+
+    it("redirects authenticated user to safe redirect destination when session is present", () => {
+      mockAuth.loading = false;
+      mockAuth.user = { id: "test-user-id", email: "user@example.com" } as any;
+
+      const { container } = render(
+        <MemoryRouter initialEntries={["/auth?redirect=/profile"]}>
+          <Auth />
+        </MemoryRouter>
+      );
+
+      // Should not render login form when user is authenticated
+      expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument();
+
+      // Reset
+      mockAuth.user = null;
+    });
   });
 });

@@ -13,14 +13,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, Loader2 } from "lucide-react";
 
 const UserOrders = () => {
-  const { user } = useAuth();
+  const { user, loading: isAuthLoading } = useAuth();
   const { orders, loading } = useOrders();
 
+  if (isAuthLoading) {
+    return (
+      <div className="container mx-auto py-24 flex flex-col justify-center items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-perfume-gold" />
+        <p className="text-xs uppercase tracking-widest text-neutral-400">Loading orders...</p>
+      </div>
+    );
+  }
+
   if (!user) {
-    return <Navigate to="/auth?redirect=/orders" />;
+    return <Navigate to="/auth?redirect=/orders" replace />;
   }
 
   return (

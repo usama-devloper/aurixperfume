@@ -9,12 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useRateLimiter } from "@/hooks/useRateLimiter";
-import { Clock, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Clock, Mail, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import { sanitizeRedirectPath, getSafeOAuthRedirectUrl } from "@/utils/authRedirect";
 
 const Auth = () => {
-  const { user, signIn, signUp } = useAuth();
+  const { user, loading: isAuthLoading, signIn, signUp } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -73,9 +73,19 @@ const Auth = () => {
     }
   }, [navigate]);
 
+  // Wait for initial session restoration before deciding whether to redirect or show login forms
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-perfume-gold" />
+        <p className="text-xs uppercase tracking-widest text-neutral-400">Verifying session...</p>
+      </div>
+    );
+  }
+
   // Redirect if user is already logged in
   if (user) {
-    return <Navigate to={safeRedirect} />;
+    return <Navigate to={safeRedirect} replace />;
   }
 
   const handleGoogleSignIn = async () => {

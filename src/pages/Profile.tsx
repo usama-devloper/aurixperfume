@@ -15,12 +15,22 @@ import { PackageCheck, MapPin, User, Shield, MapPinPlus, Trash2, Pencil, Heart }
 import { useWishlist } from "@/hooks/useWishlist";
 import ProductCard from "@/components/product/ProductCard";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const Profile = () => {
-  const { user } = useAuth();
-  
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-24 flex flex-col justify-center items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-perfume-gold" />
+        <p className="text-xs uppercase tracking-widest text-neutral-400">Loading your profile...</p>
+      </div>
+    );
+  }
+
   if (!user) {
-    return <Navigate to="/auth?redirect=/profile" />;
+    return <Navigate to="/auth?redirect=/profile" replace />;
   }
 
   return (

@@ -7,9 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Mock AuthContext
 let mockUser: any = null;
+let mockLoading = false;
 vi.mock("@/context/AuthContext", () => ({
   useAuth: () => ({
     user: mockUser,
+    loading: mockLoading,
   }),
 }));
 
@@ -286,6 +288,28 @@ describe("Profile Provisioning & Hardening", () => {
           variant: "destructive",
         })
       );
+    });
+  });
+
+  describe("Profile page route guard", () => {
+    it("renders loading indicator when initial session restoration is loading", async () => {
+      mockLoading = true;
+      mockUser = null;
+
+      const { default: Profile } = await import("@/pages/Profile");
+      const { render: rtlRender, screen: rtlScreen } = await import("@testing-library/react");
+      const { MemoryRouter } = await import("react-router-dom");
+
+      rtlRender(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <MemoryRouter>
+            <Profile />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      expect(rtlScreen.getByText(/loading your profile\.\.\./i)).toBeInTheDocument();
+      mockLoading = false;
     });
   });
 });
