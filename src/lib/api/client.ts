@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { validateSupabaseUrl } from "@/lib/supabaseUrl";
 
 export class ApiError extends Error {
   code: string;
@@ -36,8 +37,8 @@ export interface RequestOptions extends RequestInit {
 }
 
 export const getBaseFunctionUrl = (): string => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-  return `${supabaseUrl}/functions/v1`;
+  const origin = validateSupabaseUrl(import.meta.env.VITE_SUPABASE_URL, "Edge Functions");
+  return `${origin}/functions/v1`;
 };
 
 export const apiFetch = async <T = any>(
