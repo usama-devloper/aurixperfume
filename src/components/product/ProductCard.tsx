@@ -76,6 +76,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
     }, 1000);
   };
 
+  const handleRemoveFromCart = () => {
+    removeItem(product.id);
+    setIsAddedToCart(false);
+  };
+
   const showAsAddedToCart = isAddedToCart || isInCart;
 
   const handleWishlistClick = (e: React.MouseEvent) => {
@@ -132,7 +137,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
           </button>
         </div>
 
-        <CardContent className="p-4 sm:p-5 flex flex-col flex-grow justify-between">
+        <CardContent className="p-3 sm:p-4 lg:p-5 flex flex-col flex-grow justify-between">
           <ProductInfo product={product} />
 
           <div className="mt-3.5 pt-3 border-t border-border/50">
@@ -147,6 +152,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
               onAddMoreToCart={handleAddMoreToCart}
               onIncreaseQuantity={handleIncreaseQuantity}
               onDecreaseQuantity={handleDecreaseQuantity}
+              onRemoveFromCart={handleRemoveFromCart}
             />
           </div>
         </CardContent>

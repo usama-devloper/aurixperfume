@@ -408,4 +408,55 @@ describe("Cart Quantity Double-Counting & Direct Item Removal Regressions", () =
     );
     expect(orderSubtotal).toBe(16800);
   });
+
+  // Test 14: Direct removal from collection removes only that item and preserves others
+  it("14. verifies direct removal from collection removes only that item and preserves others", () => {
+    let state = cartReducer(initialEmptyState, {
+      type: "ADD_ITEM",
+      payload: { product: mockProduct1, quantity: 2 },
+    });
+    state = cartReducer(state, {
+      type: "ADD_ITEM",
+      payload: { product: mockProduct2, quantity: 1 },
+    });
+    expect(state.totalItems).toBe(3);
+
+    // Direct removal of mockProduct1
+    state = cartReducer(state, {
+      type: "REMOVE_ITEM",
+      payload: { id: 1 },
+    });
+
+    expect(state.totalItems).toBe(1);
+    expect(state.items.find(i => i.product.id === 1)).toBeUndefined();
+    expect(state.items.find(i => i.product.id === 2)?.quantity).toBe(1);
+    expect(state.lastRemovedItem?.product.id).toBe(1);
+    expect(state.lastRemovedItem?.quantity).toBe(2);
+  });
+
+  // Test 15: Restoring removed item from collection recovers exact previous quantity without duplication
+  it("15. verifies restoring removed item recovers exact quantity without duplication", () => {
+    let state = cartReducer(initialEmptyState, {
+      type: "ADD_ITEM",
+      payload: { product: mockProduct1, quantity: 3 },
+    });
+
+    state = cartReducer(state, {
+      type: "REMOVE_ITEM",
+      payload: { id: 1 },
+    });
+    const removedItem = state.lastRemovedItem!;
+    expect(removedItem.quantity).toBe(3);
+
+    // Undo action
+    state = cartReducer(state, {
+      type: "RESTORE_ITEM",
+      payload: { item: removedItem },
+    });
+
+    expect(state.totalItems).toBe(3);
+    expect(state.items.length).toBe(1);
+    expect(state.items[0].product.id).toBe(1);
+    expect(state.items[0].quantity).toBe(3);
+  });
 });

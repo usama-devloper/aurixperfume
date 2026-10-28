@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Plus, Minus, Check } from "lucide-react";
+import { ShoppingBag, Plus, Minus, Check, Trash2 } from "lucide-react";
 import { Product } from "@/types";
 
 interface ProductActionsProps {
@@ -14,6 +14,7 @@ interface ProductActionsProps {
   onAddMoreToCart?: () => void;
   onIncreaseQuantity: () => void;
   onDecreaseQuantity: () => void;
+  onRemoveFromCart?: () => void;
 }
 
 const ProductActions = ({
@@ -23,7 +24,8 @@ const ProductActions = ({
   showAsAddedToCart,
   onAddToCart,
   onIncreaseQuantity,
-  onDecreaseQuantity
+  onDecreaseQuantity,
+  onRemoveFromCart
 }: ProductActionsProps) => {
   if (!showAsAddedToCart) {
     return (
@@ -58,18 +60,37 @@ const ProductActions = ({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Link to="/cart" className="w-full">
-        <Button 
-          variant="outline" 
-          className="w-full rounded-sm border-border bg-background text-foreground hover:bg-[#C5A880] hover:text-[#1C1917] uppercase tracking-[0.16em] text-[10px] font-sans font-medium h-8 transition-colors"
-        >
-          View Bag
-        </Button>
-      </Link>
+      <div className="flex items-center gap-1.5">
+        <Link to="/cart" className="flex-1" onClick={(e) => e.stopPropagation()}>
+          <Button 
+            variant="outline" 
+            className="w-full rounded-sm border-border bg-background text-foreground hover:bg-[#C5A880] hover:text-[#1C1917] uppercase tracking-[0.16em] text-[10px] font-sans font-medium h-8 transition-colors"
+          >
+            View Bag
+          </Button>
+        </Link>
+        {onRemoveFromCart && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onRemoveFromCart();
+            }}
+            className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border rounded-sm transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-destructive/60"
+            aria-label={`Remove ${product.name} from cart`}
+            title={`Remove ${product.name} from cart`}
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
+      </div>
       <div className="flex items-center bg-muted/40 border border-border rounded-sm h-8 text-foreground overflow-hidden">
         <button 
+          type="button"
           onClick={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             onDecreaseQuantity();
           }}
           className="w-8 h-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center justify-center border-r border-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5A880]" 
@@ -81,8 +102,10 @@ const ProductActions = ({
           {cartQuantity} in Bag
         </span>
         <button 
+          type="button"
           onClick={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             onIncreaseQuantity();
           }}
           className="w-8 h-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center justify-center border-l border-border disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5A880]"

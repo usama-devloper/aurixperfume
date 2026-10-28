@@ -201,17 +201,19 @@ const ProductDetail = () => {
           
           <div className="flex items-center gap-3 mb-6">
             <div className="flex text-[#C5A880] text-sm">
-              {"★".repeat(Math.floor(product.rating))}
-              {"☆".repeat(5 - Math.floor(product.rating))}
+              {"★".repeat(Math.max(0, Math.min(5, Math.floor(product.rating || 5))))}
+              {"☆".repeat(Math.max(0, 5 - Math.min(5, Math.floor(product.rating || 5))))}
             </div>
-            <span className="text-xs text-muted-foreground">({product.reviews} reviews)</span>
+            <span className="text-xs text-muted-foreground">({product.reviews || 0} reviews)</span>
             <span className="text-border">•</span>
-            <span className="text-xs font-medium text-foreground">{product.size.value}{product.size.unit}</span>
+            <span className="text-xs font-medium text-foreground">
+              {product.size ? `${product.size.value}${product.size.unit}` : "50ml"}
+            </span>
           </div>
           
           <div className="mb-6 pb-6 border-b border-border/80">
             <p className="text-2xl sm:text-3xl font-semibold text-foreground">
-              ₹{product.price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹{(product.price || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
             <p className="text-xs text-muted-foreground mt-1">Inclusive of all taxes · Complimentary courier dispatch</p>
           </div>
@@ -344,9 +346,9 @@ const ProductDetail = () => {
               <p className="text-xs text-muted-foreground">Unfolds across top, heart, and base stages on warm skin.</p>
             </div>
             <ScentPyramid 
-              topNotes={product.fragrance.topNotes}
-              middleNotes={product.fragrance.middleNotes}
-              baseNotes={product.fragrance.baseNotes}
+              topNotes={product.fragrance?.topNotes || []}
+              middleNotes={product.fragrance?.middleNotes || []}
+              baseNotes={product.fragrance?.baseNotes || []}
             />
           </TabsContent>
 
