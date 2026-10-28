@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CartItem as CartItemType } from "@/types";
@@ -22,73 +21,92 @@ const CartItem = ({ item }: CartItemProps) => {
     } else {
       updateQuantity(product.id, newQuantity);
     }
-    setTimeout(() => setIsUpdating(false), 300);
+    setTimeout(() => setIsUpdating(false), 200);
   };
 
-  // Calculate the total price for this item
   const totalPrice = product.price * quantity;
 
   return (
-    <Card className="mb-4 overflow-hidden shadow-none border-neutral-800 bg-neutral-900 rounded-none transition-shadow duration-200">
-      <div className="flex flex-col sm:flex-row items-start p-4">
+    <Card className="mb-3 sm:mb-4 overflow-hidden shadow-sm border border-border bg-card rounded-lg transition-shadow duration-200">
+      <div className="flex items-center sm:items-start p-3 sm:p-4 gap-3 sm:gap-4">
         {/* Product Image */}
-        <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 rounded-md overflow-hidden">
+        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted/30 border border-border/60">
           <Link to={`/products/${product.id}`}>
-            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+            <img 
+              src={product.image} 
+              alt={product.name} 
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" 
+            />
           </Link>
         </div>
         
-        {/* Product Details */}
-        <div className="ml-0 sm:ml-6 mt-4 sm:mt-0 flex-grow w-full">
-          <div className="flex flex-col sm:flex-row sm:justify-between">
-            <div>
-              <Link to={`/products/${product.id}`} className="group">
-                <h3 className="font-medium text-lg text-white group-hover:text-perfume-gold transition-colors">{product.name}</h3>
+        {/* Product Details & Controls */}
+        <div className="flex-grow min-w-0 flex flex-col justify-between gap-2 self-stretch">
+          {/* Top Row: Title, Brand, Size & Direct Remove */}
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block truncate">
+                {product.brand}
+              </span>
+              <Link to={`/products/${product.id}`} className="group block">
+                <h3 className="font-serif font-semibold text-sm sm:text-base text-foreground group-hover:text-[#C5A880] transition-colors truncate">
+                  {product.name}
+                </h3>
               </Link>
-              <p className="text-sm text-gray-400">{product.brand}</p>
-              <p className="text-sm text-gray-400 mt-1">{product.size.value}{product.size.unit}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {product.size.value}{product.size.unit}
+              </p>
             </div>
             
-            <div className="mt-4 sm:mt-0">
-              <span className="font-medium text-lg text-white">₹{totalPrice.toFixed(2)}</span>
-              <div className="text-sm text-gray-400 mt-1">Unit Price: ₹{product.price.toFixed(2)}</div>
-            </div>
+            {/* Direct Remove / Trash Button */}
+            <button 
+              onClick={() => removeItem(product.id)}
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-md transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-destructive/60"
+              aria-label={`Remove ${product.name} from cart`}
+              title={`Remove ${product.name} from cart`}
+            >
+              <Trash2 size={15} />
+            </button>
           </div>
           
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 pt-4 border-t border-neutral-800">
-            {/* Quantity Controls */}
+          {/* Bottom Row: Quantity Stepper & Price Breakdown */}
+          <div className="flex justify-between items-end gap-2 pt-1 border-t border-border/50">
+            {/* Quantity Stepper */}
             <div className="flex items-center">
-              <span className="text-sm font-medium mr-3 text-gray-400">Quantity:</span>
-              <div className="flex items-center border border-neutral-700 bg-transparent h-10 text-white rounded-none">
+              <div className="flex items-center border border-border bg-muted/40 h-7 sm:h-8 text-foreground rounded-md overflow-hidden">
                 <button 
                   onClick={() => handleQuantityChange(quantity - 1)}
-                  className="px-3 h-full text-gray-400 hover:text-white disabled:opacity-50 transition-colors flex items-center justify-center"
+                  className="px-2 sm:px-2.5 h-full text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 transition-colors flex items-center justify-center border-r border-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5A880]"
                   disabled={isUpdating}
-                  aria-label="Decrease quantity"
+                  aria-label={`Decrease quantity of ${product.name}`}
                 >
-                  <Minus size={14} />
+                  <Minus size={11} />
                 </button>
-                <span className="px-4 py-1 min-w-[2.5rem] text-center text-sm font-medium">{quantity}</span>
+                <span className="px-2.5 sm:px-3 min-w-[1.75rem] sm:min-w-[2rem] text-center text-xs font-semibold">
+                  {quantity}
+                </span>
                 <button 
                   onClick={() => handleQuantityChange(quantity + 1)}
-                  className="px-3 h-full text-gray-400 hover:text-white disabled:opacity-50 transition-colors flex items-center justify-center"
-                  disabled={isUpdating}
-                  aria-label="Increase quantity"
+                  className="px-2 sm:px-2.5 h-full text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 transition-colors flex items-center justify-center border-l border-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#C5A880]"
+                  disabled={isUpdating || quantity >= 10}
+                  aria-label={`Increase quantity of ${product.name}`}
                 >
-                  <Plus size={14} />
+                  <Plus size={11} />
                 </button>
               </div>
             </div>
             
-            {/* Remove Button */}
-            <button 
-              onClick={() => removeItem(product.id)}
-              className="flex items-center mt-4 sm:mt-0 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-none transition-colors"
-              aria-label="Remove from cart"
-            >
-              <Trash2 size={16} className="mr-1" />
-              <span>Remove</span>
-            </button>
+            {/* Price breakdown */}
+            <div className="text-right">
+              <div className="font-semibold text-sm sm:text-base text-foreground leading-tight">
+                ₹{totalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              {quantity > 1 && (
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  ₹{product.price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} each
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

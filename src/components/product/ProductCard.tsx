@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import ProductImage from "./ProductImage";
 import ProductInfo from "./ProductInfo";
 import ProductActions from "./ProductActions";
@@ -16,7 +16,8 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({ product }: ProductCardProps) => {
-  const { addItem, updateQuantity, items } = useCart();
+  const shouldReduceMotion = useReducedMotion();
+  const { addItem, updateQuantity, removeItem, items } = useCart();
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
@@ -38,7 +39,6 @@ const ProductCard = ({ product }: ProductCardProps) => {
     addItem(product, quantity);
     setIsAddedToCart(true);
 
-    // Reset adding state after animation
     setTimeout(() => {
       setIsAdding(false);
     }, 1000);
@@ -46,7 +46,6 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   const handleIncreaseQuantity = () => {
     if (isInCart) {
-      // Directly update cart quantity
       if (cartQuantity < 10) {
         updateQuantity(product.id, cartQuantity + 1);
       }
@@ -57,9 +56,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   const handleDecreaseQuantity = () => {
     if (isInCart) {
-      // Directly update cart quantity
       if (cartQuantity > 1) {
         updateQuantity(product.id, cartQuantity - 1);
+      } else {
+        removeItem(product.id);
+        setIsAddedToCart(false);
       }
     } else {
       setQuantity(prev => Math.max(1, prev - 1));
@@ -70,7 +71,6 @@ const ProductCard = ({ product }: ProductCardProps) => {
     setIsAdding(true);
     addItem(product, quantity);
 
-    // Reset adding state after animation
     setTimeout(() => {
       setIsAdding(false);
     }, 1000);
@@ -85,7 +85,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       { productId: product.id, isWishlisted },
       {
         onError: (err: any) => {
-          if (err.message.includes("logged in")) {
+          if (err.message?.includes("logged in")) {
             toast({
               title: "Login Required",
               description: "Please log in to add items to your wishlist.",
@@ -112,28 +112,30 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   return (
     <motion.div
-      whileHover={{ y: -5 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      whileHover={shouldReduceMotion ? undefined : { y: -4 }}
+      transition={shouldReduceMotion ? { duration: 0 } : { type: "spring", stiffness: 350, damping: 25 }}
       className="h-full group"
     >
-      <Card className="h-full overflow-hidden bg-transparent border-none shadow-none group transition-all duration-500 group-hover:shadow-[0_0_30px_rgba(212,175,55,0.1)]">
-        <div className="relative">
+      <Card className="h-full flex flex-col overflow-hidden bg-card border border-border/70 rounded-md shadow-sm group-hover:shadow-md group-hover:border-[#C5A880]/60 transition-all duration-300">
+        <div className="relative overflow-hidden">
           <ProductImage product={product} />
           <button 
             onClick={handleWishlistClick}
-            className="absolute top-3 right-3 p-2 bg-neutral-900/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-neutral-900 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-10 border border-neutral-700"
+            className="absolute top-3 right-3 p-2 bg-black/25 hover:bg-black/55 text-[#F7F3EC] backdrop-blur-md rounded-full shadow-sm hover:scale-110 active:scale-95 transition-all z-10 border border-white/15 hover:border-[#C5A880]/60"
             aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           >
             <Heart 
-              className={`w-5 h-5 transition-colors ${isWishlisted ? 'fill-perfume-gold text-perfume-gold' : 'text-gray-400 hover:text-perfume-gold'}`} 
+              className={`w-3.5 h-3.5 transition-colors ${
+                isWishlisted ? 'fill-[#C5A880] text-[#C5A880]' : 'text-[#F7F3EC]/80 hover:text-[#C5A880]'
+              }`} 
             />
           </button>
         </div>
 
-        <CardContent className="p-4 flex flex-col flex-grow">
+        <CardContent className="p-4 sm:p-5 flex flex-col flex-grow justify-between">
           <ProductInfo product={product} />
 
-          <div className="mt-auto">
+          <div className="mt-3.5 pt-3 border-t border-border/50">
             <ProductActions
               product={product}
               quantity={quantity}
