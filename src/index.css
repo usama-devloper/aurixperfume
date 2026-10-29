@@ -1,7 +1,4 @@
-
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap');
-@import url("https://fonts.googleapis.com/css2?family=Figtree&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Cinzel:wght@400;500;600;700;800;900&family=Montserrat:wght@300;400;500;600;700&family=Figtree:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,81 +6,96 @@
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
+    /* Warm Ivory & Alabaster Luxury Palette */
+    --background: 36 28% 97%;       /* #FAF8F5 - Warm Ivory */
+    --foreground: 24 10% 12%;       /* #1C1917 - Deep Luxury Charcoal */
 
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 100%;             /* #FFFFFF - Crisp Alabaster White */
+    --card-foreground: 24 10% 12%;  /* #1C1917 */
 
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 10% 12%;
 
-    --primary: 43 74% 49%;
-    --primary-foreground: 0 0% 9%;
+    /* Champagne Gold Accents */
+    --primary: 34 38% 54%;          /* #B59468 / #C5A880 - Champagne Gold */
+    --primary-foreground: 36 28% 98%;
 
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 36 20% 93%;        /* #EFECE6 - Soft Stone Ivory */
+    --secondary-foreground: 24 10% 15%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 36 18% 94%;            /* #F2EFE9 */
+    --muted-foreground: 25 6% 45%;  /* #78716C - Warm Editorial Stone */
 
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 34 38% 64%;           /* #C5A880 - Light Champagne Shimmer */
+    --accent-foreground: 24 10% 12%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 0 65% 48%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 14%;
-    --input: 0 0% 14%;
-    --ring: 43 74% 49%;
+    --border: 36 16% 89%;           /* #E7E2D9 - Hairline Warm Stone */
+    --input: 36 16% 89%;
+    --ring: 34 38% 54%;
 
-    --radius: 0px;
+    --radius: 0.375rem;
 
-    --shadow-sm: 0px 1px 2px 0px hsla(0, 0%, 0%, 0.5);
-    --shadow: 0px 1px 4px 0px hsla(0, 0%, 0%, 0.5);
-    --shadow-md: 0px 1px 6px 0px hsla(0, 0%, 0%, 0.5);
-    --shadow-lg: 0px 1px 10px 0px hsla(0, 0%, 0%, 0.5);
+    --sidebar-background: 36 25% 96%;
+    --sidebar-foreground: 24 10% 12%;
+    --sidebar-primary: 34 38% 54%;
+    --sidebar-primary-foreground: 36 28% 98%;
+    --sidebar-accent: 36 20% 92%;
+    --sidebar-accent-foreground: 24 10% 12%;
+    --sidebar-border: 36 16% 89%;
+    --sidebar-ring: 34 38% 54%;
 
-    --font-sans: Figtree, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    --shadow-sm: 0 1px 2px 0 rgba(28, 25, 23, 0.04);
+    --shadow: 0 2px 8px -2px rgba(28, 25, 23, 0.06);
+    --shadow-md: 0 4px 16px -2px rgba(28, 25, 23, 0.08);
+    --shadow-lg: 0 10px 25px -4px rgba(28, 25, 23, 0.10);
+
+    --font-sans: 'Figtree', 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+    --font-serif: 'Playfair Display', 'Cinzel', ui-serif, Georgia, serif;
   }
 
   .dark {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
+    /* Rich Espresso & Charcoal Luxury Dark Mode */
+    --background: 24 10% 7%;        /* #141211 - Rich Obsidian Espresso */
+    --foreground: 36 25% 96%;       /* #FAF8F5 - Soft Warm Ivory */
 
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
+    --card: 24 8% 10%;             /* #1B1918 */
+    --card-foreground: 36 25% 96%;
 
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 24 8% 10%;
+    --popover-foreground: 36 25% 96%;
 
-    --primary: 43 74% 49%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 34 45% 62%;          /* #C5A880 - Champagne Gold */
+    --primary-foreground: 24 10% 7%;
 
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 24 8% 16%;
+    --secondary-foreground: 36 25% 96%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 24 8% 14%;
+    --muted-foreground: 30 10% 65%;
 
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 34 45% 62%;
+    --accent-foreground: 24 10% 7%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 0 62% 42%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 14%;
-    --input: 0 0% 14%;
-    --ring: 43 74% 49%;
+    --border: 24 8% 18%;            /* #302C2A */
+    --input: 24 8% 18%;
+    --ring: 34 45% 62%;
 
-    --radius: 0px;
+    --radius: 0.375rem;
 
-    --shadow-sm: 0px 1px 2px 0px hsla(0, 0%, 0%, 0.5);
-    --shadow: 0px 1px 4px 0px hsla(0, 0%, 0%, 0.5);
-    --shadow-md: 0px 1px 6px 0px hsla(0, 0%, 0%, 0.5);
-    --shadow-lg: 0px 1px 10px 0px hsla(0, 0%, 0%, 0.5);
-
-    --font-sans: Figtree, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    --sidebar-background: 24 10% 8%;
+    --sidebar-foreground: 36 25% 96%;
+    --sidebar-primary: 34 45% 62%;
+    --sidebar-primary-foreground: 24 10% 7%;
+    --sidebar-accent: 24 8% 14%;
+    --sidebar-accent-foreground: 36 25% 96%;
+    --sidebar-border: 24 8% 18%;
+    --sidebar-ring: 34 45% 62%;
   }
 }
 
@@ -93,42 +105,49 @@
   }
 
   body {
-    @apply text-gray-100 font-sans;
-    background-color: #0A0A0A;
+    @apply text-foreground bg-background font-sans antialiased;
+    letter-spacing: -0.01em;
   }
 
   html, body, #root {
-    background-color: #0A0A0A;
+    min-height: 100%;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-sans font-bold tracking-tight uppercase;
+    @apply font-serif text-foreground;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
   .hero-section {
-    @apply relative py-20 text-white min-h-[600px] flex items-center;
+    @apply relative py-24 text-white min-h-[640px] flex items-center;
   }
 
   .product-card {
-    @apply bg-neutral-900 rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl;
+    @apply bg-card text-card-foreground border border-border/80 rounded-lg shadow-sm overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-perfume-gold/50;
   }
 
   .product-card img {
-    @apply w-full h-64 object-cover;
+    @apply w-full h-64 object-cover transition-transform duration-500 ease-out;
+  }
+
+  .product-card:hover img {
+    @apply scale-105;
   }
 
   .btn-primary {
-    @apply bg-white text-black font-semibold py-3 px-6 rounded-none uppercase tracking-widest hover:bg-neutral-200 transition-all text-xs;
+    @apply bg-[#1C1917] text-[#FAF8F5] font-medium py-3 px-6 rounded-md tracking-wider hover:bg-[#2B2724] active:scale-[0.98] transition-all text-xs inline-flex items-center justify-center shadow-sm;
   }
 
   .btn-secondary {
-    @apply bg-transparent border border-white text-white font-semibold py-3 px-6 rounded-none uppercase tracking-widest hover:bg-white hover:text-black transition-all text-xs;
+    @apply bg-transparent border border-[#1C1917]/25 text-[#1C1917] font-medium py-3 px-6 rounded-md tracking-wider hover:border-[#C5A880] hover:text-[#C5A880] hover:bg-[#C5A880]/5 active:scale-[0.98] transition-all text-xs inline-flex items-center justify-center;
   }
 
   .btn-gold {
-    @apply bg-perfume-gold text-black font-semibold uppercase tracking-widest py-3 px-6 rounded-none hover:bg-amber-600 transition-colors text-xs;
+    @apply bg-[#C5A880] text-[#1C1917] font-semibold tracking-wider py-3 px-6 rounded-md hover:bg-[#B8996F] active:scale-[0.98] transition-all text-xs inline-flex items-center justify-center shadow-sm;
   }
 
   /* Checkout page styles */
@@ -137,36 +156,36 @@
   }
 
   .checkout-step-circle {
-    @apply w-10 h-10 rounded-full flex items-center justify-center text-white font-medium transition-all;
+    @apply w-10 h-10 rounded-full flex items-center justify-center font-medium transition-all;
   }
 
   .checkout-step-active .checkout-step-circle {
-    @apply bg-perfume-gold text-black;
+    @apply bg-[#C5A880] text-[#1C1917] ring-2 ring-[#C5A880]/30 shadow-sm;
   }
 
   .checkout-step-completed .checkout-step-circle {
-    @apply bg-green-600 text-white;
+    @apply bg-[#1C1917] text-[#FAF8F5];
   }
 
   .checkout-step-pending .checkout-step-circle {
-    @apply bg-neutral-800 text-gray-500;
+    @apply bg-muted text-muted-foreground border border-border;
   }
 
   .checkout-form-container {
-    @apply bg-neutral-900 border border-neutral-800 rounded-none p-6 mb-6;
+    @apply bg-card border border-border rounded-lg p-6 mb-6 shadow-sm;
   }
 
   .checkout-summary-container {
-    @apply bg-neutral-900 border border-neutral-800 rounded-none p-6 sticky top-24;
+    @apply bg-card border border-border rounded-lg p-6 sticky top-24 shadow-sm;
   }
 
   /* Form styles */
   .form-input {
-    @apply w-full border rounded-none p-3 bg-neutral-900 border-neutral-700 text-white focus:ring-1 focus:ring-perfume-gold focus:border-perfume-gold outline-none;
+    @apply w-full border rounded-md p-3 bg-background border-border text-foreground focus:ring-1 focus:ring-perfume-gold focus:border-perfume-gold outline-none text-sm transition-all;
   }
 
   .form-label {
-    @apply block text-sm font-medium mb-2;
+    @apply block text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-2;
   }
 
   /* Animations */
@@ -175,7 +194,7 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
@@ -185,17 +204,13 @@
 
   @keyframes pulse {
     0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    50% { transform: scale(1.03); }
     100% { transform: scale(1); }
   }
 
   /* Improved buttons with hover effects */
   button, .btn {
     @apply transition-all duration-200;
-  }
-
-  button:active, .btn:active {
-    @apply transform scale-95;
   }
 
   /* Typography improvements */
@@ -208,25 +223,48 @@
   }
 
   .checkout-bg {
-    @apply bg-[#0A0A0A];
+    @apply bg-background;
   }
 
-  /* Form inputs with better contrast on white backgrounds */
+  /* Form inputs with better contrast */
   .checkout-input {
-    @apply bg-neutral-900 border border-neutral-700 text-white;
+    @apply bg-background border border-border text-foreground rounded-md;
   }
 }
+
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #333;
-  border-radius: 4px;
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #555;
+  background-color: hsl(var(--primary));
 }
 
+/* Reduced-motion accessibility overrides */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Prevent decorative scaling, transforms, & shifts on hover/active for reduced-motion users */
+  .product-card:hover img,
+  .product-card:hover,
+  .btn-primary:active,
+  .btn-secondary:active,
+  .btn-gold:active {
+    transform: none !important;
+  }
+}

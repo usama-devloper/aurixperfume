@@ -65,16 +65,25 @@ export default {
     				ring: 'hsl(var(--sidebar-ring))'
     			},
     			perfume: {
-    				purple: '#9b87f5',
-    				'dark-purple': '#6E59A5',
-    				gold: '#D4AF37',
-    				cream: '#F8F5F0',
-    				'soft-pink': '#FFDEE2',
-    				'soft-purple': '#E5DEFF'
+    				purple: '#C5A880',
+    				'dark-purple': '#9A7B4F',
+    				gold: '#C5A880',
+    				'gold-metallic': '#D4AF37',
+    				'gold-light': '#F3ECE1',
+    				'gold-dark': '#9A7B4F',
+    				champagne: '#C5A880',
+    				cream: '#FAF8F5',
+    				ivory: '#F7F4EE',
+    				charcoal: '#1C1917',
+    				stone: '#78716C',
+    				'warm-gray': '#E7E2D9',
+    				'soft-pink': '#F7EBE8',
+    				'soft-purple': '#EFE9DE'
     			}
     		},
     		fontFamily: {
     			serif: [
+    				'"Playfair Display"',
     				'Cinzel',
     				'ui-serif',
     				'Georgia',
@@ -83,8 +92,14 @@ export default {
     				'Times',
     				'serif'
     			],
+    			display: [
+    				'Cinzel',
+    				'"Playfair Display"',
+    				'serif'
+    			],
     			sans: [
     				'Figtree',
+    				'Montserrat',
     				'ui-sans-serif',
     				'system-ui',
     				'sans-serif',

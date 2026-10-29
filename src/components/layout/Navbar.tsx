@@ -7,6 +7,7 @@ import { NavbarSearch } from "./NavbarSearch";
 import { UserMenu } from "./UserMenu";
 import { MobileMenu } from "./MobileMenu";
 import { CartButton } from "./CartButton";
+import { ThemeToggle } from "./ThemeToggle";
 import { useSiteSetting } from "@/hooks/useSiteSettings";
 
 const Navbar = () => {
@@ -105,6 +106,7 @@ const Navbar = () => {
           {/* Right Section: Search & Actions */}
           <div className="flex items-center space-x-3">
             <NavbarSearch />
+            <ThemeToggle className="hidden sm:flex" />
             <UserMenu />
             <CartButton />
           </div>
