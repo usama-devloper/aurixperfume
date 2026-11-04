@@ -1,8 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { BookOpen, Info, User, Users } from "lucide-react";
+import { BookOpen, Sparkles, User, Users, HeartHandshake } from "lucide-react";
 import { Link } from "react-router-dom";
 import philosophyImage from "@/assets/philosophy-image.jpg";
 import usamaMalikPhoto from "@/assets/usama-malik.jpg";
@@ -12,76 +11,95 @@ import thomasMartinPhoto from "@/assets/thomas-martin.jpg";
 
 const About = () => {
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="container mx-auto px-4 lg:px-8 py-12 max-w-6xl">
       {/* Hero Section */}
-      <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-serif mb-4 text-white">Our Story</h1>
-        <p className="text-gray-400 max-w-2xl mx-auto">
-          Founded in 2015, AURIX has transformed the art of luxury 
-          fragrance with our focus on exquisite ingredients and bespoke craftsmanship.
+      <div className="text-center mb-14 sm:mb-16 max-w-2xl mx-auto px-2">
+        <span className="text-[10px] sm:text-xs font-semibold tracking-[0.3em] text-[#C5A880] uppercase mb-2 block">
+          Heritage & Vision
+        </span>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-medium text-foreground tracking-tight mb-3 sm:mb-4">
+          The Story of AURIX
+        </h1>
+        <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
+          Founded on a devotion to rare botanical harvests and traditional distillation, AURIX crafts perfumes that honor the historic lineage of French and Oriental perfumery.
         </p>
       </div>
 
       {/* Brand Philosophy */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-16 mb-24 items-center">
-        <img src={philosophyImage} alt="Artisan perfume making process" className="h-96 w-full object-cover rounded-none" />
-        <div>
-          <h2 className="text-3xl font-serif mb-6 text-white">Our Philosophy</h2>
-          <p className="mb-4 text-gray-300">
-            At AURIX, we believe that a fragrance is more than just a scent—it is an 
-            extension of one's identity, a captured memory, and a silent communicator of personality.
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16 mb-20 sm:mb-24 items-center">
+        <div className="rounded-xl overflow-hidden border border-border shadow-md">
+          <img 
+            src={philosophyImage} 
+            alt="Artisanal perfume compounding" 
+            className="aspect-[4/3] sm:aspect-auto sm:h-96 w-full object-cover hover:scale-105 transition-transform duration-700" 
+          />
+        </div>
+        <div className="space-y-6">
+          <span className="text-xs font-semibold tracking-[0.25em] text-[#C5A880] uppercase block">
+            Our Guiding Creed
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-serif font-medium text-foreground tracking-tight">
+            An Intimate Expression of Identity
+          </h2>
+          <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
+            At AURIX, we perceive fragrance as a silent language. It unfolds uniquely upon each skin chemistry, evoking cherished memories, subtle magnetism, and enduring elegance.
           </p>
-          <p className="mb-6 text-gray-300">
-            Our perfumers are guided by three core principles: exceptional quality, artistic innovation,
-            and emotional resonance. Each fragrance is thoughtfully created to evoke specific memories,
-            emotions, and experiences.
+          <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
+            Our creative process adheres strictly to three tenets: wild-harvested sustainable absolutes, rigorous maceration periods, and emotionally resonant compositions that never compromise on longevity.
           </p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 pt-2">
             <div className="flex items-center gap-3">
-              <BookOpen className="text-perfume-gold" />
-              <span className="text-white">Artisanal Approach</span>
+              <BookOpen className="text-[#C5A880] w-5 h-5 shrink-0" />
+              <span className="text-xs font-semibold text-foreground">Artisanal Small-Batch</span>
             </div>
             <div className="flex items-center gap-3">
-              <Info className="text-perfume-gold" />
-              <span className="text-white">Sustainable Sourcing</span>
+              <Sparkles className="text-[#C5A880] w-5 h-5 shrink-0" />
+              <span className="text-xs font-semibold text-foreground">Ethical Raw Sourcing</span>
             </div>
             <div className="flex items-center gap-3">
-              <User className="text-perfume-gold" />
-              <span className="text-white">Personal Expression</span>
+              <User className="text-[#C5A880] w-5 h-5 shrink-0" />
+              <span className="text-xs font-semibold text-foreground">Bespoke Identity</span>
             </div>
             <div className="flex items-center gap-3">
-              <Users className="text-perfume-gold" />
-              <span className="text-white">Collaborative Creation</span>
+              <Users className="text-[#C5A880] w-5 h-5 shrink-0" />
+              <span className="text-xs font-semibold text-foreground">Collaborative Mastery</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Our Process */}
-      <div className="mb-24">
-        <h2 className="text-3xl font-serif mb-10 text-center text-white">Our Process</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="mb-20 sm:mb-24">
+        <div className="text-center mb-10 sm:mb-12">
+          <span className="text-xs font-semibold tracking-[0.25em] text-[#C5A880] uppercase mb-2 block">
+            Craftsmanship
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-serif font-medium text-foreground tracking-tight">
+            From Blossom to Flacon
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {[
             {
-              title: "Ingredient Sourcing",
-              description: "We travel the world to source the finest raw materials, from Bulgarian roses to Madagascan vanilla."
+              title: "Ethical Harvest",
+              description: "We work directly with artisanal growers to source Bulgarian Damask roses, aged Cambodian agarwood, and Bourbon vanilla."
             },
             {
-              title: "Artisanal Blending",
-              description: "Our master perfumers create unique compositions that evolve beautifully on the skin over time."
+              title: "Artisanal Maceration",
+              description: "Compositions mature undisturbed for up to 60 days in dark glass vessels, ensuring full olfactive synergy and roundness."
             },
             {
-              title: "Meticulous Testing",
-              description: "Each fragrance undergoes extensive testing to ensure longevity, projection, and emotional impact."
+              title: "Precision Bottling",
+              description: "Each numbered flacon is hand-filled, sealed with a magnetic cap, and packaged in our signature presentation cases."
             }
           ].map((step, index) => (
-            <Card key={index} className="bg-neutral-900 border-neutral-800 rounded-none shadow-none">
-              <CardContent className="pt-6">
-                <div className="bg-neutral-800 w-12 h-12 rounded-none flex items-center justify-center mb-4">
-                  <span className="text-white font-bold">{index + 1}</span>
+            <Card key={index} className="bg-card border border-border rounded-xl shadow-sm p-5 sm:p-6 hover:border-[#C5A880]/50 transition-colors">
+              <CardContent className="p-0">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-4 text-[#C5A880] font-serif font-bold text-sm">
+                  0{index + 1}
                 </div>
-                <h3 className="font-serif text-xl mb-2 text-white">{step.title}</h3>
-                <p className="text-gray-400">{step.description}</p>
+                <h3 className="font-serif text-lg font-medium text-foreground mb-2">{step.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{step.description}</p>
               </CardContent>
             </Card>
           ))}
@@ -89,45 +107,61 @@ const About = () => {
       </div>
 
       {/* Meet Our Team */}
-      <div className="mb-24">
-        <h2 className="text-3xl font-serif mb-10 text-center text-white">Meet Our Team</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="mb-20 sm:mb-24">
+        <div className="text-center mb-10 sm:mb-12">
+          <span className="text-xs font-semibold tracking-[0.25em] text-[#C5A880] uppercase mb-2 block">
+            The Atelier
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-serif font-medium text-foreground tracking-tight">
+            The Hands Behind AURIX
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {[
             {
               name: "Usama Malik",
               position: "Founder & Creative Director",
-              bio: "With 10 years of experience in the fragrance industry, Usama brings an unparalleled vision to AURIX.",
+              bio: "Bringing a lifelong passion for heritage attars and modern French perfumery to steer the creative vision of AURIX.",
               photo: usamaMalikPhoto
             },
             {
               name: "Michel Lambert",
               position: "Master Perfumer",
-              bio: "A graduate of ISIPCA in Versailles, Michel has created award-winning fragrances for over 15 years.",
+              bio: "ISIPCA alumnus with 15 years dedicated to crafting complex ambery and woody bouquets with exceptional sillage.",
               photo: michelLambertPhoto
             },
             {
               name: "Amélie Roux",
-              position: "Ingredient Specialist",
-              bio: "Amélie travels the world to source the most exquisite and sustainable raw materials.",
+              position: "Naturals Specialist",
+              bio: "Curates relationships with heritage distillers globally to guarantee raw material purity and sustainability.",
               photo: amelieRouxPhoto
             },
             {
               name: "Thomas Martin",
-              position: "Design Director",
-              bio: "Thomas ensures that our packaging and presentation match the elegance of our fragrances.",
+              position: "Design & Presentation",
+              bio: "Sculpts the visual identity and bespoke glass flacons so the tactile experience mirrors the luxury within.",
               photo: thomasMartinPhoto
             }
           ].map((member, index) => (
-            <Card key={index} className="overflow-hidden bg-neutral-900 border-neutral-800 rounded-none shadow-none">
+            <Card key={index} className="overflow-hidden bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
               {member.photo ? (
-                <img src={member.photo} alt={member.name} className="h-60 w-full object-cover" />
+                <div className="aspect-[4/5] sm:h-64 sm:aspect-auto overflow-hidden bg-muted/40">
+                  <img 
+                    src={member.photo} 
+                    alt={member.name} 
+                    loading="lazy"
+                    className="h-full w-full object-cover hover:scale-105 transition-transform duration-500" 
+                  />
+                </div>
               ) : (
-                <div className="h-60 bg-neutral-800"></div>
+                <div className="aspect-[4/5] sm:h-64 sm:aspect-auto bg-muted"></div>
               )}
-              <CardContent className="p-4">
-                <h3 className="font-serif text-lg mb-1 text-white uppercase tracking-widest text-sm">{member.name}</h3>
-                <p className="text-perfume-gold text-xs font-bold mb-2 uppercase tracking-widest">{member.position}</p>
-                <p className="text-gray-400 text-sm">{member.bio}</p>
+              <CardContent className="p-3.5 sm:p-5 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="font-serif text-sm sm:text-base font-semibold text-foreground mb-0.5">{member.name}</h3>
+                  <p className="text-[#C5A880] text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider mb-2">{member.position}</p>
+                  <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed line-clamp-3 sm:line-clamp-none">{member.bio}</p>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -135,34 +169,33 @@ const About = () => {
       </div>
 
       {/* Commitment */}
-      <div className="bg-neutral-900 border border-neutral-800 p-10 rounded-none mb-24">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl font-serif mb-6 text-white">Our Commitment</h2>
-          <p className="mb-6 text-gray-400">
-            We are committed to sustainable practices, from responsibly sourcing our ingredients to 
-            using recyclable packaging. Every purchase supports our initiatives to reduce environmental 
-            impact and give back to the communities where we source our materials.
+      <div className="bg-card border border-border/80 p-6 sm:p-12 rounded-xl mb-16 sm:mb-20 shadow-sm">
+        <div className="max-w-2xl mx-auto text-center space-y-4">
+          <HeartHandshake className="w-8 h-8 text-[#C5A880] mx-auto" />
+          <h2 className="text-2xl sm:text-3xl font-serif font-medium text-foreground">Our Ethical Pledge</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            We pledge total transparency in our sourcing, cruelty-free formulating, and recyclable glass flacons. A portion of every harvest fund supports the communities where our botanical crops are hand-gathered.
           </p>
-          <Separator className="my-8 bg-neutral-800" />
-          <p className="italic text-gray-500">
-            "To create a true luxury fragrance is to capture an emotion in a bottle – a moment that 
-            can be relived with every spray." — Usama Malik, Founder
+          <Separator className="my-6 bg-border/80" />
+          <p className="font-serif italic text-sm text-foreground/80">
+            "To bottle a fragrance is to encapsulate a memory—a fleeting instant that can be vividly resurrected with a single breath."
           </p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#C5A880]">— Usama Malik, Founder</p>
         </div>
       </div>
 
       {/* Call to Action */}
-      <div className="text-center">
-        <h2 className="text-3xl font-serif mb-6 text-white">Experience Our Fragrances</h2>
-        <p className="mb-8 text-gray-400 max-w-2xl mx-auto">
-          Discover your perfect scent from our collection of meticulously crafted fragrances.
+      <div className="text-center max-w-xl mx-auto">
+        <h2 className="text-2xl sm:text-3xl font-serif font-medium text-foreground mb-3">Experience Haute Perfumery</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mb-8 leading-relaxed">
+          Explore our collection of meticulously blended perfumes and traditional attars.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button asChild className="rounded-none bg-perfume-gold text-black hover:bg-yellow-600 uppercase tracking-widest text-[10px] font-bold px-8">
-            <Link to="/products">Shop Collection</Link>
+          <Button asChild className="btn-gold px-8 py-3.5">
+            <Link to="/products">Explore Collection</Link>
           </Button>
-          <Button asChild variant="outline" className="rounded-none border-neutral-700 bg-transparent text-white hover:bg-neutral-800 hover:text-white uppercase tracking-widest text-[10px] font-bold px-8">
-            <Link to="/contact">Contact Us</Link>
+          <Button asChild variant="outline" className="rounded-md border-border text-foreground hover:bg-muted text-xs uppercase tracking-wider font-semibold px-8 py-3.5">
+            <Link to="/contact">Contact Concierge</Link>
           </Button>
         </div>
       </div>
