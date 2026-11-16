@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Package, Truck, CheckCircle2, Clock, MapPin, Calendar, Hash } from "lucide-react";
+import { Loader2, Package, Truck, CheckCircle2, Clock, MapPin, Calendar, Hash, Sparkles, ExternalLink } from "lucide-react";
 
 type OrderStatus = "pending" | "processing" | "shipped" | "delivered";
 
@@ -21,20 +21,45 @@ interface TrackingResult {
 
 const STATUS_STEPS: { status: OrderStatus; label: string; icon: React.ElementType }[] = [
   { status: "pending", label: "Order Placed", icon: Clock },
-  { status: "processing", label: "Processing", icon: Package },
-  { status: "shipped", label: "Shipped", icon: Truck },
+  { status: "processing", label: "Preparation", icon: Package },
+  { status: "shipped", label: "In Transit", icon: Truck },
   { status: "delivered", label: "Delivered", icon: CheckCircle2 },
 ];
 
 const CARRIER_LABELS: Record<string, string> = {
-  fedex: "FedEx",
+  fedex: "FedEx Express",
   ups: "UPS",
   usps: "USPS",
-  dhl: "DHL",
+  dhl: "DHL Express",
   bluedart: "Blue Dart",
-  dtdc: "DTDC",
+  dtdc: "DTDC Express",
   delhivery: "Delhivery",
-  other: "Other",
+  other: "Courier Service",
+};
+
+/**
+ * Resolves verified official HTTPS carrier tracking landing pages using an explicit allowlist.
+ * Never appends unverified query parameters, and rejects untrusted carriers or missing tracking codes.
+ */
+const getCarrierTrackingUrl = (carrier: string | null, trackingNumber: string | null): string | null => {
+  if (!carrier || !trackingNumber) return null;
+  const cleanCode = trackingNumber.trim();
+  // Ensure a valid tracking code exists before providing portal link
+  if (!cleanCode || cleanCode.length < 4 || cleanCode.length > 40 || !/^[A-Za-z0-9\-_]+$/.test(cleanCode)) {
+    return null;
+  }
+
+  // Hardcoded explicit HTTPS allowlist of verified official tracking landing pages
+  const CARRIER_URLS: Record<string, string> = {
+    fedex: "https://www.fedex.com/en-in/tracking.html",
+    ups: "https://www.ups.com/in/en/home",
+    usps: "https://tools.usps.com/go/TrackAction",
+    dhl: "https://www.dhl.com/in-en/home/tracking.html",
+    delhivery: "https://www.delhivery.com/tracking",
+  };
+
+  const key = carrier.toLowerCase().trim();
+  return CARRIER_URLS[key] || null;
 };
 
 const OrderTracking = () => {
@@ -45,6 +70,7 @@ const OrderTracking = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     
     const query = searchQuery.trim();
     if (!query) {
@@ -57,7 +83,6 @@ const OrderTracking = () => {
     setTrackingResult(null);
     
     try {
-      // First try secure RPC if available
       let rpcData: any = null;
       let rpcError: any = null;
 
@@ -83,7 +108,6 @@ const OrderTracking = () => {
         return;
       }
 
-      // Fallback for environments where RPC is not yet pushed
       const { data, error: fetchError } = await supabase
         .from("orders")
         .select("id, order_number, tracking_number, shipping_carrier, status, estimated_delivery, created_at, updated_at")
@@ -120,7 +144,7 @@ const OrderTracking = () => {
   };
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return "Not available";
+    if (!dateString) return "Pending dispatch";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -128,169 +152,230 @@ const OrderTracking = () => {
     });
   };
 
+  const carrierTrackingUrl = trackingResult 
+    ? getCarrierTrackingUrl(trackingResult.shippingCarrier, trackingResult.trackingNumber)
+    : null;
+
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-serif mb-4 text-white uppercase tracking-wider">Order Tracking</h1>
-          <p className="text-gray-400">Enter your order ID or tracking number to see its current status.</p>
-        </div>
+    <div className="container mx-auto px-4 lg:px-8 py-12 max-w-4xl">
+      <div className="text-center mb-10 max-w-xl mx-auto">
+        <span className="text-[10px] font-semibold tracking-[0.3em] text-[#C5A880] uppercase mb-2 block">
+          Concierge Services
+        </span>
+        <h1 className="text-3xl sm:text-4xl font-serif font-medium text-foreground tracking-tight mb-2">
+          Track Your Delivery
+        </h1>
+        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+          Enter your order reference or carrier tracking code to monitor real-time fulfillment and parcel transit.
+        </p>
+      </div>
 
-        {/* Search Card */}
-        <Card className="mb-8 border border-neutral-800 bg-neutral-900 rounded-none shadow-none">
-          <CardContent className="pt-6">
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="searchQuery" className="text-gray-300">Order ID or Tracking Number</Label>
-                <div className="flex gap-3 mt-2">
-                  <Input
-                    id="searchQuery"
-                    placeholder="e.g. ORD-12345 or TRACK-987"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold"
+      {/* Search Card */}
+      <Card className="mb-10 border border-border bg-card rounded-xl shadow-sm">
+        <CardContent className="p-6 sm:p-8">
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-3">
+              <Label htmlFor="searchQuery" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
+                Order ID or Tracking Number
+              </Label>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  id="searchQuery"
+                  placeholder="e.g. ORD-20261026-0001 or FedEx tracking code"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 rounded-md bg-background border-border text-foreground h-12 text-sm focus:ring-1 focus:ring-[#C5A880] focus:border-[#C5A880]"
+                />
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  aria-label={isLoading ? "Tracking order..." : "Track order"}
+                  className="sm:w-36 btn-gold h-12 rounded-md uppercase tracking-wider text-xs font-semibold shadow-sm flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      <span className="sr-only">Tracking order...</span>
+                    </>
+                  ) : (
+                    "Track"
+                  )}
+                </Button>
+              </div>
+              {error && (
+                <p role="alert" aria-live="polite" className="text-xs text-destructive mt-2">
+                  {error}
+                </p>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Results Card */}
+      {trackingResult && (
+        <Card className="border border-border bg-card rounded-xl shadow-md overflow-hidden animate-fade-in motion-reduce:animate-none">
+          <CardHeader className="bg-muted/30 border-b border-border/80 py-5 px-6 sm:px-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span className="text-[10px] uppercase tracking-widest text-[#C5A880] font-semibold block">Confirmed Dispatch</span>
+                <CardTitle className="text-lg font-serif text-foreground">Order Status Summary</CardTitle>
+              </div>
+              <span className="text-xs font-mono font-semibold bg-background border border-border/80 px-3 py-1 rounded-md text-foreground self-start sm:self-auto break-all max-w-full">
+                {trackingResult.orderNumber}
+              </span>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-6 sm:p-8 space-y-8">
+            {/* Status Timeline */}
+            <div>
+              <div 
+                role="list" 
+                aria-label="Order fulfillment progress"
+                className="flex justify-between items-start relative max-w-2xl mx-auto"
+              >
+                {/* Progress Line */}
+                <div className="absolute top-5 left-6 right-6 h-[2px] bg-border z-0" aria-hidden="true">
+                  <div 
+                    className="h-full bg-[#C5A880] transition-all duration-1000 ease-in-out motion-reduce:transition-none" 
+                    style={{ width: `${(getStatusIndex(trackingResult.status) / (STATUS_STEPS.length - 1)) * 100}%` }}
                   />
-                  <Button 
-                    type="submit" 
-                    disabled={isLoading}
-                    className="w-32 rounded-none bg-perfume-gold text-black hover:bg-yellow-600 uppercase tracking-widest text-[10px] font-bold"
-                  >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Track"}
-                  </Button>
-                </div>
-                {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
-                </div>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Results Card */}
-        {trackingResult && (
-          <Card className="border border-neutral-800 bg-neutral-900 rounded-none shadow-none animate-fade-in overflow-hidden mt-8">
-            <CardHeader className="bg-[#0A0A0A] border-b border-neutral-800 py-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-serif text-white uppercase tracking-widest">Order Status</CardTitle>
-                <span className="text-sm font-medium text-perfume-gold font-mono">
-                  {trackingResult.orderNumber}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-8 pb-6">
-              {/* Status Timeline */}
-              <div className="mb-8">
-                <div className="flex justify-between items-start relative">
-                  {/* Progress Line */}
-                  <div className="absolute top-5 left-0 right-0 h-[1px] bg-neutral-800 mx-8">
-                    <div 
-                      className="h-full bg-perfume-gold transition-all duration-1000 ease-in-out" 
-                      style={{ width: `${(getStatusIndex(trackingResult.status) / (STATUS_STEPS.length - 1)) * 100}%` }}
-                    />
-                  </div>
-                  
-                  {STATUS_STEPS.map((step, index) => {
-                    const currentIndex = getStatusIndex(trackingResult.status);
-                    const isCompleted = index <= currentIndex;
-                    const isCurrent = index === currentIndex;
-                    const Icon = step.icon;
-                    
-                    return (
-                      <div key={step.status} className="flex flex-col items-center z-10 flex-1 group">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 border ${
-                          isCompleted 
-                            ? "bg-perfume-gold text-black border-perfume-gold" 
-                            : "bg-[#0A0A0A] text-gray-500 border-neutral-800"
-                        } ${isCurrent ? "ring-4 ring-perfume-gold/20 shadow-[0_0_15px_rgba(202,165,80,0.5)]" : ""}`}>
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <span className={`text-[10px] mt-3 uppercase tracking-widest text-center transition-colors duration-300 ${
-                          isCompleted ? "text-perfume-gold font-bold" : "text-gray-500 font-medium"
-                        }`}>
-                          {step.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Order Details Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <div className="flex items-start gap-4 p-5 border border-neutral-800 bg-[#0A0A0A]">
-                  <div className="bg-neutral-900 p-2 rounded-full mt-0.5">
-                    <Hash className="h-4 w-4 text-perfume-gold" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Order Number</p>
-                    <p className="font-mono text-gray-200">{trackingResult.orderNumber}</p>
-                  </div>
                 </div>
                 
-                <div className="flex items-start gap-4 p-5 border border-neutral-800 bg-[#0A0A0A]">
-                  <div className="bg-neutral-900 p-2 rounded-full mt-0.5">
-                    <Calendar className="h-4 w-4 text-perfume-gold" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Order Date</p>
-                    <p className="text-gray-200">{formatDate(trackingResult.createdAt)}</p>
-                  </div>
-                </div>
+                {STATUS_STEPS.map((step, index) => {
+                  const currentIndex = getStatusIndex(trackingResult.status);
+                  const isCompleted = index <= currentIndex;
+                  const isCurrent = index === currentIndex;
+                  const Icon = step.icon;
+                  const stepNumber = index + 1;
+                  
+                  return (
+                    <div 
+                      key={step.status} 
+                      role="listitem"
+                      aria-current={isCurrent ? "step" : undefined}
+                      className="flex flex-col items-center z-10 flex-1 px-1"
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 border motion-reduce:transition-none ${
+                        isCompleted 
+                          ? "bg-[#C5A880] text-[#1C1917] border-[#C5A880] shadow-sm font-bold" 
+                          : "bg-card text-muted-foreground border-border"
+                      } ${isCurrent ? "ring-4 ring-[#C5A880]/20" : ""}`}>
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <span className={`text-[10px] mt-2.5 uppercase tracking-wider text-center ${
+                        isCompleted ? "text-foreground font-semibold" : "text-muted-foreground"
+                      }`}>
+                        <span className="sr-only">Step {stepNumber}: </span>
+                        {step.label}
+                        {isCurrent && <span className="sr-only"> (Current status)</span>}
+                        {isCompleted && !isCurrent && <span className="sr-only"> (Completed)</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-                <div className="flex items-start gap-4 p-5 border border-neutral-800 bg-[#0A0A0A]">
-                  <div className="bg-neutral-900 p-2 rounded-full mt-0.5">
-                    <Truck className="h-4 w-4 text-perfume-gold" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Shipping Carrier</p>
-                    <p className="text-gray-200">
-                      {trackingResult.shippingCarrier ? CARRIER_LABELS[trackingResult.shippingCarrier] || trackingResult.shippingCarrier : "Pending processing"}
-                    </p>
-                  </div>
+            {/* Order Details Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex items-start gap-3.5 p-4 rounded-lg border border-border bg-muted/20">
+                <div className="bg-card p-2 rounded-full border border-border text-[#C5A880] shrink-0 mt-0.5">
+                  <Hash className="h-4 w-4" aria-hidden="true" />
                 </div>
-
-                <div className="flex items-start gap-4 p-5 border border-neutral-800 bg-[#0A0A0A]">
-                  <div className="bg-neutral-900 p-2 rounded-full mt-0.5">
-                    <MapPin className="h-4 w-4 text-perfume-gold" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Est. Delivery</p>
-                    <p className="text-gray-200">{formatDate(trackingResult.estimatedDelivery)}</p>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Order Reference</p>
+                  <p className="font-mono text-xs font-semibold text-foreground mt-0.5 break-all">{trackingResult.orderNumber}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3.5 p-4 rounded-lg border border-border bg-muted/20">
+                <div className="bg-card p-2 rounded-full border border-border text-[#C5A880] shrink-0 mt-0.5">
+                  <Calendar className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Order Date</p>
+                  <p className="text-xs text-foreground mt-0.5">{formatDate(trackingResult.createdAt)}</p>
                 </div>
               </div>
 
-              {/* Status Message */}
-              <div className="bg-neutral-900 border border-perfume-gold/30 rounded-none p-5 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-perfume-gold"></div>
-                <h3 className="font-serif mb-2 flex items-center gap-2 text-white">
-                  <CheckCircle2 className="h-4 w-4 text-perfume-gold" />
-                  Status Update
-                </h3>
-                <p className="text-sm text-gray-400 pl-6">
-                  {trackingResult.status === "pending" && "Your order has been received and is awaiting processing. We'll update you once it's being prepared."}
-                  {trackingResult.status === "processing" && "Great news! Your order is being prepared and will be shipped soon."}
-                  {trackingResult.status === "shipped" && (
-                    <>
-                      Your order is on its way!
-                      {trackingResult.trackingNumber && trackingResult.shippingCarrier && (
-                        <> Track it with {CARRIER_LABELS[trackingResult.shippingCarrier] || trackingResult.shippingCarrier} using tracking number <strong className="text-white font-mono bg-[#0A0A0A] px-2 py-0.5 ml-1">{trackingResult.trackingNumber}</strong>.</>
-                      )}
-                    </>
+              <div className="flex items-start gap-3.5 p-4 rounded-lg border border-border bg-muted/20">
+                <div className="bg-card p-2 rounded-full border border-border text-[#C5A880] shrink-0 mt-0.5">
+                  <Truck className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Courier Carrier</p>
+                  <p className="text-xs text-foreground mt-0.5 font-medium">
+                    {trackingResult.shippingCarrier ? CARRIER_LABELS[trackingResult.shippingCarrier] || trackingResult.shippingCarrier : "Dedicated courier packaging"}
+                  </p>
+                  {trackingResult.trackingNumber && (
+                    <div className="mt-1">
+                      <span className="text-[10px] text-muted-foreground">Tracking Code: </span>
+                      <span className="font-mono text-xs font-semibold text-foreground break-all">{trackingResult.trackingNumber}</span>
+                    </div>
                   )}
-                  {trackingResult.status === "delivered" && "Your order has been delivered successfully. Thank you for shopping with us!"}
-                </p>
+                </div>
               </div>
 
-              {/* Timestamps */}
-              <div className="mt-4 pt-4 border-t flex justify-between text-xs text-muted-foreground">
-                <span>Ordered: {formatDate(trackingResult.createdAt)}</span>
-                <span>Last updated: {formatDate(trackingResult.updatedAt)}</span>
+              <div className="flex items-start gap-3.5 p-4 rounded-lg border border-border bg-muted/20">
+                <div className="bg-card p-2 rounded-full border border-border text-[#C5A880] shrink-0 mt-0.5">
+                  <MapPin className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Estimated Arrival</p>
+                  <p className="text-xs text-foreground mt-0.5">{formatDate(trackingResult.estimatedDelivery)}</p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            </div>
+
+            {/* Status Narrative Callout */}
+            <div className="rounded-lg p-5 border border-[#C5A880]/40 bg-[#C5A880]/5 relative overflow-hidden">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-4 w-4 text-[#C5A880] shrink-0 mt-0.5" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-serif text-sm font-semibold text-foreground mb-1">
+                    Fulfillment Notice
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {trackingResult.status === "pending" && "Your order has been registered and is scheduled for atelier compounding and quality inspection."}
+                    {trackingResult.status === "processing" && "Your flacon is being hand-bottled, inspected, and packaged in our presentation gift box."}
+                    {trackingResult.status === "shipped" && (
+                      <>
+                        Your package has been securely sealed and handed over to our courier partner.
+                        {trackingResult.trackingNumber && (
+                          <> Waybill tracking code: <strong className="font-mono text-foreground px-1.5 py-0.5 bg-card border rounded ml-1 break-all">{trackingResult.trackingNumber}</strong>.</>
+                        )}
+                      </>
+                    )}
+                    {trackingResult.status === "delivered" && "Your shipment has arrived at your destination. May your new fragrance bring you endless delight."}
+                  </p>
+                  {trackingResult.status === "shipped" && carrierTrackingUrl && (
+                    <div className="mt-3">
+                      <a
+                        href={carrierTrackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C5A880] hover:underline focus:outline-none focus:ring-1 focus:ring-[#C5A880] rounded px-1 py-0.5"
+                      >
+                        Track on carrier portal
+                        <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        <span className="sr-only">(opens in a new tab)</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Timestamps */}
+            <div className="pt-4 border-t border-border flex justify-between text-[11px] text-muted-foreground">
+              <span>Created: {formatDate(trackingResult.createdAt)}</span>
+              <span>Updated: {formatDate(trackingResult.updatedAt)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
