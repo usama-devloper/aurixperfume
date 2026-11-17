@@ -29,4 +29,11 @@ const config = validateSupabaseConfig(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 );
 
-export const supabase = createClient<Database>(config.url, config.key);
+export const supabase = createClient<Database>(config.url, config.key, {
+  auth: {
+    flowType: 'pkce',
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});

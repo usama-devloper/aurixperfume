@@ -1,7 +1,6 @@
-
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
@@ -24,12 +23,13 @@ export const CartButton = () => {
       variant="ghost" 
       size="icon" 
       onClick={() => navigate("/cart")} 
-      className="relative flex items-center justify-center hover:bg-white/10 transition-colors h-10 w-10 rounded-full"
+      className="relative shrink-0 flex items-center justify-center text-foreground hover:text-[#C5A880] hover:bg-[#EFECE6]/60 dark:hover:bg-[#1B1918] transition-colors h-10 w-10 rounded-full"
+      aria-label={`Shopping Bag (${totalItems} items)`}
     >
-      <ShoppingCart className="h-5 w-5 text-white" />
+      <ShoppingBag className="h-[18px] w-[18px]" />
       {totalItems > 0 && (
         <span 
-          className={`absolute -top-1 -right-1 bg-perfume-gold text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm transition-transform duration-300 ${
+          className={`absolute -top-1 -right-1 bg-[#C5A880] text-[#1C1917] text-[10px] font-bold rounded-full w-4.5 h-4.5 min-w-[18px] px-1 flex items-center justify-center shadow-sm transition-transform duration-300 ${
             animateCount ? 'scale-125' : 'scale-100'
           }`}
         >

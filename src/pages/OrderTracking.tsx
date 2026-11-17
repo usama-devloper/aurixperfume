@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,17 +62,24 @@ const getCarrierTrackingUrl = (carrier: string | null, trackingNumber: string | 
   return CARRIER_URLS[key] || null;
 };
 
+const getInitialQueryFromUrl = (): string | null => {
+  if (typeof window === "undefined" || !window.location?.search) return null;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("query") || params.get("id") || params.get("order") || null;
+  } catch {
+    return null;
+  }
+};
+
 const OrderTracking = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [trackingResult, setTrackingResult] = useState<TrackingResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isLoading) return;
-    
-    const query = searchQuery.trim();
+  const executeLookup = useCallback(async (queryToLookup: string) => {
+    const query = queryToLookup.trim();
     if (!query) {
       setError("Please enter a tracking number or order ID");
       return;
@@ -137,6 +144,23 @@ const OrderTracking = () => {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const queryParam = getInitialQueryFromUrl();
+    if (queryParam) {
+      const clean = queryParam.trim();
+      if (clean.length >= 3 && clean.length <= 64 && /^[A-Za-z0-9\-_]+$/.test(clean)) {
+        setSearchQuery(clean);
+        executeLookup(clean);
+      }
+    }
+  }, [executeLookup]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLoading) return;
+    executeLookup(searchQuery);
   };
 
   const getStatusIndex = (status: OrderStatus) => {

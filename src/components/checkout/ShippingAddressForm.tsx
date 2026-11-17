@@ -87,8 +87,8 @@ const ShippingAddressForm = ({ onSubmit, initialValues, selectedAddressId: initi
 
   return (
     <div className="space-y-6">
-      <div className="bg-neutral-900 rounded-none p-6 shadow-none border border-neutral-800">
-        <h2 className="text-xl font-medium mb-6">Shipping Information</h2>
+      <div className="bg-card rounded-lg p-6 shadow-sm border border-border text-foreground">
+        <h2 className="font-serif text-xl font-medium mb-6">Shipping Information</h2>
         
         {user && addresses.length > 0 && (
           <ShippingAddressSelector 

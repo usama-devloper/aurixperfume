@@ -335,10 +335,15 @@ const CheckoutStepsContainer = ({ items, totalItems, totalAmount, clearCart }: C
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <h1 className="text-3xl font-serif mb-8">Checkout</h1>
+    <div className="container mx-auto px-4 lg:px-8 py-10 max-w-7xl">
+      <div className="mb-8 text-center">
+        <span className="text-[11px] font-semibold tracking-[0.25em] text-[#C5A880] uppercase block mb-1">
+          Bespoke Dispatch
+        </span>
+        <h1 className="text-3xl sm:text-4xl font-serif font-medium text-foreground tracking-tight">Checkout</h1>
+      </div>
       <CheckoutSteps currentStep={currentStep} onStepClick={setCurrentStep} />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">{renderStepContent()}</div>
         <div className="lg:col-span-1">
           <CheckoutSummary items={items} totalAmount={totalAmount} />

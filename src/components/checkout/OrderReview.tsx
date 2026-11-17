@@ -1,8 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CartItem } from "@/types";
-import { CreditCard, MapPin, Smartphone, ShoppingCart } from "lucide-react";
+import { CreditCard, MapPin, Smartphone, ShoppingBag, ArrowLeft, ShieldCheck } from "lucide-react";
 import { type ShippingFormValues } from "./ShippingAddressForm";
 import { PaymentInfo } from "./PaymentForm";
 import {
@@ -41,40 +40,42 @@ const OrderReview = ({
   selectedAddressId = null
 }: OrderReviewProps) => {
   const [showAddressDropdown, setShowAddressDropdown] = useState(false);
-  
-  // Generate subtotal, shipping, and total
-  const subtotal = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-  const shipping = subtotal > 50 ? 0 : 5.99;
-  const total = subtotal + shipping;
 
   const getPaymentMethodDisplay = () => {
     switch (paymentInfo.paymentMethod) {
       case 'card':
         return {
-          icon: <CreditCard size={18} className="mr-2 text-perfume-purple" />,
-          title: 'Credit/Debit Card',
-          details: `Card ending in ${paymentInfo.cardNumber.slice(-4)}`,
-          subDetails: `Expiry: ${paymentInfo.expiryDate}`
+          icon: <CreditCard size={18} className="mr-2 text-[#C5A880]" />,
+          title: 'Credit / Debit Card (Stripe)',
+          details: 'Secure card redirection',
+          subDetails: 'Encrypted via Stripe 256-bit SSL'
         };
       case 'upi':
         return {
-          icon: <Smartphone size={18} className="mr-2 text-orange-600" />,
-          title: 'UPI Transaction',
-          details: paymentInfo.upiUtr ? `UTR: ${paymentInfo.upiUtr}` : 'Awaiting UPI confirmation',
+          icon: <Smartphone size={18} className="mr-2 text-[#C5A880]" />,
+          title: 'UPI Payment',
+          details: paymentInfo.upiUtr ? `UTR: ${paymentInfo.upiUtr}` : 'Awaiting UPI verification',
           subDetails: null
         };
       case 'cod':
         return {
-          icon: <ShoppingCart size={18} className="mr-2 text-green-600" />,
+          icon: <ShoppingBag size={18} className="mr-2 text-[#C5A880]" />,
           title: 'Cash on Delivery',
-          details: 'Pay in cash when order arrives',
+          details: 'Pay upon delivery at your doorstep',
+          subDetails: null
+        };
+      case 'manual':
+        return {
+          icon: <CreditCard size={18} className="mr-2 text-[#C5A880]" />,
+          title: 'Direct WhatsApp Concierge',
+          details: 'Personal settlement with administrator',
           subDetails: null
         };
       default:
         return {
-          icon: <CreditCard size={18} className="mr-2 text-perfume-purple" />,
+          icon: <CreditCard size={18} className="mr-2 text-[#C5A880]" />,
           title: 'Payment Method',
-          details: 'Not selected',
+          details: 'Selected method',
           subDetails: null
         };
     }
@@ -83,25 +84,30 @@ const OrderReview = ({
   const paymentDisplay = getPaymentMethodDisplay();
 
   return (
-    <div className="bg-neutral-900 rounded-none p-6 shadow-none border border-neutral-800 space-y-8 text-white">
-      <h2 className="text-xl font-medium mb-4">Order Review</h2>
+    <div className="bg-card rounded-lg p-6 sm:p-8 shadow-sm border border-border space-y-8 text-foreground">
+      <div className="border-b border-border/80 pb-3">
+        <span className="text-[10px] font-semibold tracking-[0.25em] text-[#C5A880] uppercase block">
+          Final Verification
+        </span>
+        <h2 className="font-serif text-xl sm:text-2xl font-medium">Review Your Order</h2>
+      </div>
       
       {/* Shipping Address Section */}
       <div>
         <div className="flex justify-between items-center mb-3">
-          <h3 className="font-medium text-base flex items-center">
-            <MapPin size={18} className="mr-2 text-perfume-purple" />
-            Shipping Address
+          <h3 className="font-serif text-sm font-semibold uppercase tracking-wider text-foreground flex items-center">
+            <MapPin size={16} className="mr-2 text-[#C5A880]" />
+            Shipping Destination
           </h3>
           
           {savedAddresses.length > 0 && onAddressSelect && (
             <DropdownMenu open={showAddressDropdown} onOpenChange={setShowAddressDropdown}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto rounded-none border-neutral-700 text-white hover:bg-neutral-800 hover:text-white uppercase tracking-widest text-[10px] font-bold">
+                <Button variant="outline" className="rounded-md border-border text-foreground hover:bg-muted uppercase tracking-wider text-[11px] font-semibold h-8 px-3">
                   Change Address
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72">
+              <DropdownMenuContent align="end" className="w-72 bg-card border-border">
                 {savedAddresses.map((address) => (
                   <DropdownMenuItem 
                     key={address.id}
@@ -111,9 +117,9 @@ const OrderReview = ({
                       setShowAddressDropdown(false);
                     }}
                   >
-                    <div className="border-t border-neutral-800 pt-4 mb-6">
-                      <p className="font-medium">{address.full_name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{address.address}, {address.city}, {address.state}</p>
+                    <div className="py-1">
+                      <p className="font-semibold text-xs text-foreground">{address.full_name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{address.address}, {address.city}, {address.state}</p>
                     </div>
                   </DropdownMenuItem>
                 ))}
@@ -122,17 +128,17 @@ const OrderReview = ({
           )}
         </div>
         
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <p className="font-medium">{shippingInfo.fullName}</p>
-            <p>{shippingInfo.address}</p>
-            <p>
+        <Card className="overflow-hidden bg-muted/20 border-border rounded-lg shadow-none">
+          <CardContent className="p-4 text-xs space-y-1">
+            <p className="font-semibold text-sm text-foreground">{shippingInfo.fullName}</p>
+            <p className="text-muted-foreground">{shippingInfo.address}</p>
+            <p className="text-muted-foreground">
               {shippingInfo.city}, {shippingInfo.state} {shippingInfo.zip}
             </p>
-            <p>{shippingInfo.country}</p>
-            <div className="mt-3 text-sm text-muted-foreground">
-              <p>{shippingInfo.email}</p>
-              <p>{shippingInfo.phone}</p>
+            <p className="text-muted-foreground">{shippingInfo.country}</p>
+            <div className="pt-2 mt-2 border-t border-border/60 text-muted-foreground space-y-0.5">
+              <p>Email: {shippingInfo.email}</p>
+              <p>Phone: {shippingInfo.phone}</p>
             </div>
           </CardContent>
         </Card>
@@ -144,8 +150,8 @@ const OrderReview = ({
               checked={saveAddress}
               onCheckedChange={(checked) => onSaveAddressChange(!!checked)} 
             />
-            <label htmlFor="save-address" className="text-sm text-muted-foreground cursor-pointer">
-              Save this address for future shopping
+            <label htmlFor="save-address" className="text-xs text-muted-foreground cursor-pointer">
+              Save this address to your account for future orders
             </label>
           </div>
         )}
@@ -153,18 +159,18 @@ const OrderReview = ({
       
       {/* Payment Method Section */}
       <div>
-        <h3 className="font-medium text-base mb-3 flex items-center">
+        <h3 className="font-serif text-sm font-semibold uppercase tracking-wider text-foreground mb-3 flex items-center">
           {paymentDisplay.icon}
-          Payment Method
+          Selected Settlement
         </h3>
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <p className="font-medium">{paymentDisplay.title}</p>
+        <Card className="overflow-hidden bg-muted/20 border-border rounded-lg shadow-none">
+          <CardContent className="p-4 text-xs">
+            <p className="font-semibold text-sm text-foreground">{paymentDisplay.title}</p>
             {paymentDisplay.details && (
-              <p className="text-sm text-muted-foreground mt-1">{paymentDisplay.details}</p>
+              <p className="text-muted-foreground mt-1">{paymentDisplay.details}</p>
             )}
             {paymentDisplay.subDetails && (
-              <p className="text-sm text-muted-foreground">{paymentDisplay.subDetails}</p>
+              <p className="text-muted-foreground mt-0.5">{paymentDisplay.subDetails}</p>
             )}
           </CardContent>
         </Card>
@@ -172,23 +178,27 @@ const OrderReview = ({
       
       {/* Order Items Section */}
       <div>
-        <h3 className="font-medium text-base mb-3">Order Items</h3>
-        <Card className="overflow-hidden">
-          <CardContent className="p-4 divide-y">
+        <h3 className="font-serif text-sm font-semibold uppercase tracking-wider text-foreground mb-3">
+          Ordered Creations ({items.length})
+        </h3>
+        <Card className="overflow-hidden bg-muted/20 border-border rounded-lg shadow-none">
+          <CardContent className="p-4 divide-y divide-border/60">
             {items.map((item) => (
-              <div key={item.product.id} className="py-3 first:pt-0 last:pb-0 flex justify-between items-center">
-                <div className="flex items-center">
+              <div key={item.product.id} className="py-3 first:pt-0 last:pb-0 flex justify-between items-center gap-3">
+                <div className="flex items-center gap-3">
                   <img 
                     src={item.product.image} 
                     alt={item.product.name} 
-                    className="w-16 h-16 object-cover rounded-none mr-4"
+                    className="w-14 h-14 object-cover rounded-md border border-border/60 flex-shrink-0"
                   />
                   <div>
-                    <p className="font-medium">{item.product.name}</p>
-                    <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                    <p className="font-semibold text-xs text-foreground">{item.product.name}</p>
+                    <p className="text-[11px] text-muted-foreground">Qty: {item.quantity}</p>
                   </div>
                 </div>
-                <p className="font-medium">₹{(item.product.price * item.quantity).toFixed(2)}</p>
+                <p className="font-semibold text-xs text-foreground whitespace-nowrap">
+                  ₹{(item.product.price * item.quantity).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
             ))}
           </CardContent>
@@ -196,18 +206,22 @@ const OrderReview = ({
       </div>
       
       {/* Action Buttons */}
-      <div className="pt-2">
+      <div className="pt-4 flex flex-col sm:flex-row gap-3">
         <Button 
+          type="button"
+          variant="outline"
           onClick={onBack}
-          className="btn-secondary w-full mb-4"
+          className="w-full sm:w-1/3 rounded-md border-border text-foreground hover:bg-muted text-xs uppercase tracking-wider font-semibold h-12"
         >
+          <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
           Back
         </Button>
         <Button 
+          type="button"
           onClick={onSubmit}
-          className="btn-gold w-full"
+          className="w-full sm:w-2/3 btn-gold h-12 text-xs uppercase tracking-wider font-semibold shadow-sm"
         >
-          Place Order
+          Complete & Place Order
         </Button>
       </div>
     </div>

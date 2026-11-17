@@ -23,40 +23,58 @@ const CheckoutSteps = ({ currentStep, onStepClick }: CheckoutStepsProps) => {
   };
 
   return (
-    <div className="flex justify-center mb-8">
-      <div className="flex items-center max-w-md w-full">
+    <div className="flex justify-center mb-10">
+      <div className="flex items-center max-w-md w-full justify-between">
         {/* Shipping Step */}
         <div 
-          className={`flex flex-col items-center ${currentStep === "shipping" ? "text-perfume-purple" : "text-gray-500"} ${canGoToStep("shipping") ? "cursor-pointer hover:text-perfume-dark-purple" : ""}`}
+          className={`flex flex-col items-center ${
+            currentStep === "shipping" ? "text-foreground font-semibold" : "text-muted-foreground"
+          } ${canGoToStep("shipping") ? "cursor-pointer hover:text-foreground" : ""}`}
           onClick={() => handleStepClick("shipping")}
         >
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${currentStep === "shipping" ? "bg-perfume-purple text-white" : "bg-perfume-purple/90 text-white"}`}>
-            {currentStep === "shipping" ? <span>1</span> : <Check size={18} />}
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+            currentStep === "shipping" 
+              ? "bg-[#C5A880] text-[#1C1917] shadow-sm font-bold" 
+              : "bg-[#1C1917] text-[#FAF8F5]"
+          }`}>
+            {currentStep === "shipping" ? <span>1</span> : <Check size={16} />}
           </div>
-          <span className="text-sm mt-2 font-medium">Shipping</span>
+          <span className="text-xs mt-2 uppercase tracking-wider">Shipping</span>
         </div>
         
-        <div className={`w-16 h-1 ${currentStep !== "shipping" ? "bg-perfume-purple" : "bg-gray-200"}`}></div>
+        <div className={`flex-1 h-[1.5px] mx-3 transition-colors ${currentStep !== "shipping" ? "bg-[#C5A880]" : "bg-border"}`}></div>
         
         {/* Payment Step */}
         <div 
-          className={`flex flex-col items-center ${currentStep === "payment" ? "text-perfume-purple" : "text-gray-500"} ${canGoToStep("payment") ? "cursor-pointer hover:text-perfume-dark-purple" : ""}`}
+          className={`flex flex-col items-center ${
+            currentStep === "payment" ? "text-foreground font-semibold" : "text-muted-foreground"
+          } ${canGoToStep("payment") ? "cursor-pointer hover:text-foreground" : ""}`}
           onClick={() => handleStepClick("payment")}
         >
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${currentStep === "payment" ? "bg-perfume-purple text-white" : currentStep === "review" ? "bg-perfume-purple/90 text-white" : "bg-gray-200"}`}>
-            {currentStep === "review" ? <Check size={18} /> : <span>2</span>}
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+            currentStep === "payment" 
+              ? "bg-[#C5A880] text-[#1C1917] shadow-sm font-bold" 
+              : currentStep === "review" 
+                ? "bg-[#1C1917] text-[#FAF8F5]" 
+                : "bg-muted text-muted-foreground border border-border"
+          }`}>
+            {currentStep === "review" ? <Check size={16} /> : <span>2</span>}
           </div>
-          <span className="text-sm mt-2 font-medium">Payment</span>
+          <span className="text-xs mt-2 uppercase tracking-wider">Payment</span>
         </div>
         
-        <div className={`w-16 h-1 ${currentStep === "review" ? "bg-perfume-purple" : "bg-gray-200"}`}></div>
+        <div className={`flex-1 h-[1.5px] mx-3 transition-colors ${currentStep === "review" ? "bg-[#C5A880]" : "bg-border"}`}></div>
         
         {/* Review Step */}
-        <div className={`flex flex-col items-center ${currentStep === "review" ? "text-perfume-purple" : "text-gray-500"}`}>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${currentStep === "review" ? "bg-perfume-purple text-white" : "bg-gray-200"}`}>
+        <div className={`flex flex-col items-center ${currentStep === "review" ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+            currentStep === "review" 
+              ? "bg-[#C5A880] text-[#1C1917] shadow-sm font-bold" 
+              : "bg-muted text-muted-foreground border border-border"
+          }`}>
             <span>3</span>
           </div>
-          <span className="text-sm mt-2 font-medium">Review</span>
+          <span className="text-xs mt-2 uppercase tracking-wider">Confirmation</span>
         </div>
       </div>
     </div>

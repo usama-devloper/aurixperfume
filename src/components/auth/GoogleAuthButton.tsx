@@ -28,11 +28,11 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
       onClick={onClick}
       disabled={disabled || isLoading}
       aria-label={text}
-      className={`w-full bg-neutral-800/80 hover:bg-neutral-800 text-white border-neutral-700 hover:border-perfume-gold/60 rounded-none h-12 flex items-center justify-center gap-3 transition-all duration-200 uppercase tracking-widest text-xs font-semibold focus-visible:ring-1 focus-visible:ring-perfume-gold disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+      className={`w-full bg-card hover:bg-muted text-foreground border border-border hover:border-[#C5A880]/60 rounded-md h-11 flex items-center justify-center gap-3 transition-all duration-200 tracking-wider text-xs font-semibold focus-visible:ring-1 focus-visible:ring-[#C5A880] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
     >
       {isLoading ? (
         <>
-          <Loader2 className="w-4 h-4 animate-spin text-perfume-gold" aria-hidden="true" />
+          <Loader2 className="w-4 h-4 animate-spin text-[#C5A880]" aria-hidden="true" />
           <span>Connecting to Google...</span>
         </>
       ) : (

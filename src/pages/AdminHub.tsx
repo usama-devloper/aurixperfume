@@ -13,6 +13,7 @@ import {
   Plus,
   Eye,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 const AdminHub = () => {
@@ -61,6 +62,12 @@ const AdminHub = () => {
       value: stats?.pendingOrders,
       suffix: stats?.totalOrders ? `of ${stats.totalOrders} total` : "pending",
       highlight: (stats?.pendingOrders ?? 0) > 0,
+    },
+    {
+      title: "Returns",
+      description: "Client return & dispute claims",
+      icon: RefreshCw,
+      to: "/admin/returns",
     },
     {
       title: "Categories",

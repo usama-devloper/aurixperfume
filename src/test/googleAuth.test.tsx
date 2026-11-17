@@ -198,6 +198,35 @@ describe("Google OAuth & Safe Redirect Implementation", () => {
       mockAuth.loading = false;
     });
 
+    it("renders verifying session indicator when code is in URL search params even if loading is false", () => {
+      mockAuth.loading = false;
+      mockAuth.user = null;
+
+      render(
+        <MemoryRouter initialEntries={["/auth?code=mock-pkce-oauth-code&redirect=/checkout"]}>
+          <Auth />
+        </MemoryRouter>
+      );
+
+      // Must show verifying session indicator to prevent flashing login form or duplicate clicks
+      expect(screen.getByText(/verifying session\.\.\./i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument();
+    });
+
+    it("handles OAuth callback error in URL search params gracefully without crashing", () => {
+      mockAuth.loading = false;
+      mockAuth.user = null;
+
+      render(
+        <MemoryRouter initialEntries={["/auth?error=access_denied&error_description=User+cancelled+Google+login"]}>
+          <Auth />
+        </MemoryRouter>
+      );
+
+      // On error, login buttons should be available for retry
+      expect(screen.getByRole("button", { name: /continue with google/i })).toBeInTheDocument();
+    });
+
     it("redirects authenticated user to safe redirect destination when session is present", () => {
       mockAuth.loading = false;
       mockAuth.user = { id: "test-user-id", email: "user@example.com" } as any;

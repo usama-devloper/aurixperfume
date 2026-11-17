@@ -2,7 +2,7 @@ import { useSiteSettings } from "./useSiteSettings";
 
 const DEFAULTS = {
   shippingFee: 400,
-  freeShippingThreshold: 2000,
+  freeShippingThreshold: 1000,
   taxRate: 0.08,
 };
 

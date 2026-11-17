@@ -72,22 +72,22 @@ const Navbar = () => {
           )}
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
-            <span className="font-serif text-2xl lg:text-3xl font-bold tracking-[0.22em] text-[#1C1917] dark:text-[#FAF8F5] group-hover:text-[#C5A880] transition-colors uppercase">
+          <Link to="/" className="flex items-center gap-2 group shrink-0">
+            <span className="font-serif text-xl sm:text-2xl lg:text-3xl font-bold tracking-[0.15em] lg:tracking-[0.22em] text-[#1C1917] dark:text-[#FAF8F5] group-hover:text-[#C5A880] transition-colors uppercase">
               {brandName}
             </span>
           </Link>
 
           {/* Desktop Navigation */}
           {!isMobile && (
-            <nav className="hidden md:flex space-x-10 items-center">
+            <nav className="hidden md:flex space-x-1.5 lg:space-x-6 xl:space-x-10 items-center">
               {navLinks.map((link) => {
                 const isActive = location.pathname === link.path;
                 return (
                   <Link
                     key={link.path}
                     to={link.path}
-                    className={`text-xs font-medium tracking-[0.2em] uppercase transition-all relative py-1.5 ${
+                    className={`text-[11px] lg:text-xs font-medium tracking-[0.05em] lg:tracking-[0.2em] uppercase transition-all relative py-1.5 ${
                       isActive 
                         ? 'text-[#C5A880] font-semibold' 
                         : 'text-[#1C1917]/80 dark:text-[#FAF8F5]/80 hover:text-[#C5A880]'
@@ -104,7 +104,7 @@ const Navbar = () => {
           )}
 
           {/* Right Section: Search & Actions */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1 sm:space-x-1.5 lg:space-x-3 shrink-0">
             <NavbarSearch />
             <ThemeToggle className="hidden sm:flex" />
             <UserMenu />

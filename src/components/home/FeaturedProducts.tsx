@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import ProductCard from "@/components/product/ProductCard";
 import { useFeaturedProducts } from "@/hooks/useProducts";
 import { Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const FeaturedProducts = () => {
   const { data: featuredProducts = [], isLoading } = useFeaturedProducts();
@@ -24,21 +25,26 @@ const FeaturedProducts = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-[#0A0A0A] py-12">
+      <div className="py-16">
         <div className="container mx-auto px-4 flex justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#C5A880]" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#0A0A0A] py-12">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-serif mb-2 text-white">Featured Fragrances</h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">
-            Discover our most loved scents, crafted with exquisite ingredients and designed to captivate the senses.
+    <section className="py-16 lg:py-24 bg-background">
+      <div className="container mx-auto px-4 lg:px-8">
+        <div className="text-center mb-14">
+          <span className="text-xs font-semibold tracking-[0.25em] text-[#C5A880] uppercase mb-2 block">
+            Curated Selection
+          </span>
+          <h2 className="text-3xl lg:text-4xl font-serif font-medium text-foreground mb-3">
+            Featured Creations
+          </h2>
+          <p className="text-muted-foreground text-sm max-w-xl mx-auto leading-relaxed">
+            Discover our most sought-after olfactory compositions, handcrafted with rare botanical absolutes and exquisite resins.
           </p>
         </div>
 
@@ -48,13 +54,13 @@ const FeaturedProducts = () => {
           ))}
         </div>
 
-        <div className="text-center mt-10">
-          <a href="/products" className="btn-secondary inline-block">
-            View All Fragrances
-          </a>
+        <div className="text-center mt-12">
+          <Link to="/products" className="btn-secondary inline-flex px-8 py-3.5">
+            View Complete Collection →
+          </Link>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Navigate, useSearchParams, useNavigate } from "react-router-dom";
+import { Navigate, useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useRateLimiter } from "@/hooks/useRateLimiter";
-import { Clock, Mail, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { Clock, Mail, AlertCircle, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import { sanitizeRedirectPath, getSafeOAuthRedirectUrl } from "@/utils/authRedirect";
 
@@ -32,12 +32,11 @@ const Auth = () => {
   const rawRedirect = searchParams.get("redirect");
   const safeRedirect = sanitizeRedirectPath(rawRedirect, "/");
 
-  
   // Rate limiting for password reset (3 attempts per 15 minutes)
   const resetRateLimit = useRateLimiter({
     maxAttempts: 3,
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    blockDurationMs: 30 * 60 * 1000 // 30 minutes block
+    windowMs: 15 * 60 * 1000,
+    blockDurationMs: 30 * 60 * 1000
   });
 
   // Cooldown timer effect
@@ -51,7 +50,7 @@ const Auth = () => {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // Support deep-linking to a specific tab (e.g. /auth?tab=forgot)
+  // Support deep-linking to a specific tab
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab === "signin" || tab === "signup" || tab === "forgot") {
@@ -59,7 +58,7 @@ const Auth = () => {
     }
   }, [searchParams]);
 
-  // If Supabase sends recovery tokens (or recovery errors) in the URL hash, always handle it on /reset-password
+  // If Supabase sends recovery tokens in URL hash
   useEffect(() => {
     const hash = window.location.hash;
     if (!hash) return;
@@ -73,12 +72,35 @@ const Auth = () => {
     }
   }, [navigate]);
 
-  // Wait for initial session restoration before deciding whether to redirect or show login forms
-  if (isAuthLoading) {
+  // Handle OAuth query errors (e.g. access_denied when user dismisses consent)
+  useEffect(() => {
+    const error = searchParams.get("error");
+    const errorDescription = searchParams.get("error_description");
+    if (error || errorDescription) {
+      toast({
+        title: "Google Sign-In Error",
+        description: errorDescription || "Sign-in could not be completed. Please try again.",
+        variant: "destructive",
+      });
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("error");
+      newParams.delete("error_description");
+      newParams.delete("error_code");
+      navigate({ search: newParams.toString() }, { replace: true });
+    }
+  }, [searchParams, navigate]);
+
+  // Wait for initial session restoration or OAuth code exchange before deciding whether to redirect or show login forms
+  const isVerifyingOAuth =
+    isAuthLoading ||
+    searchParams.has("code") ||
+    (typeof window !== "undefined" && window.location.hash.includes("access_token"));
+
+  if (isVerifyingOAuth) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-black gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-perfume-gold" />
-        <p className="text-xs uppercase tracking-widest text-neutral-400">Verifying session...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-[#C5A880]" />
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">Verifying session...</p>
       </div>
     );
   }
@@ -121,13 +143,11 @@ const Auth = () => {
     try {
       await signIn(email, password);
     } catch (error: any) {
-      // Show error with forgot password option for auth errors
       toast({
         title: "Sign in failed",
         description: error.message || "Invalid email or password. Please try again.",
         variant: "destructive",
       });
-      // Automatically switch to forgot password tab after showing error
       setTimeout(() => setDefaultTab("forgot"), 100);
     } finally {
       setIsLoading(false);
@@ -137,7 +157,6 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form fields
     if (!firstName.trim() || !lastName.trim()) {
       toast({
         title: "Missing information",
@@ -177,7 +196,6 @@ const Auth = () => {
         description: "Please check your email to verify your account, then sign in.",
       });
       setDefaultTab("signin");
-      // Clear form
       setFirstName("");
       setLastName("");
       setEmail("");
@@ -199,37 +217,23 @@ const Auth = () => {
     
     if (message.includes("rate limit") || message.includes("too many")) {
       return {
-        title: "Too many requests",
-        description: "You've requested too many reset emails. Please wait 30 minutes before trying again."
-      };
-    }
-    
-    if (message.includes("invalid") && message.includes("email")) {
-      return {
-        title: "Invalid email format",
-        description: "Please enter a valid email address."
-      };
-    }
-    
-    if (message.includes("not found") || message.includes("no user")) {
-      return {
-        title: "Email not found",
-        description: "If an account exists with this email, you'll receive a reset link shortly."
+        title: "Rate limit exceeded",
+        description: "Too many reset attempts. Please wait 15 minutes before trying again.",
       };
     }
     
     return {
-      title: "Unable to send reset email",
-      description: error.message || "Something went wrong. Please try again later."
+      title: "Password reset failed",
+      description: error.message || "Failed to send reset link. Please try again.",
     };
   };
 
   const handlePasswordReset = async (e?: React.FormEvent, isResend = false) => {
-    e?.preventDefault();
+    if (e) e.preventDefault();
     
     const targetEmail = isResend ? lastSentEmail : email;
     
-    if (!targetEmail.trim()) {
+    if (!targetEmail || !targetEmail.trim()) {
       toast({
         title: "Email required",
         description: "Please enter your email address to reset your password.",
@@ -238,24 +242,11 @@ const Auth = () => {
       return;
     }
 
-    // Check rate limit
     if (!resetRateLimit.isAllowed(targetEmail)) {
-      const remainingTime = resetRateLimit.getRemainingTime(targetEmail);
-      const minutes = Math.ceil(remainingTime / (1000 * 60));
-      
+      const remainingMinutes = Math.ceil(resetRateLimit.getRemainingTime(targetEmail) / (1000 * 60));
       toast({
-        title: "Too many reset attempts",
-        description: `Please wait ${minutes} minute${minutes !== 1 ? 's' : ''} before requesting another reset email.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check cooldown for resend
-    if (isResend && resendCooldown > 0) {
-      toast({
-        title: "Please wait",
-        description: `You can resend the email in ${resendCooldown} seconds.`,
+        title: "Too many attempts",
+        description: `Please wait ${remainingMinutes} minute(s) before requesting another reset link.`,
         variant: "destructive",
       });
       return;
@@ -269,10 +260,7 @@ const Auth = () => {
       
       if (error) throw error;
       
-      // Record the attempt
       resetRateLimit.recordAttempt(targetEmail);
-      
-      // Set cooldown (60 seconds)
       setResendCooldown(60);
       setLastSentEmail(targetEmail);
       setResetSent(true);
@@ -298,18 +286,23 @@ const Auth = () => {
   };
 
   return (
-    <div className="container mx-auto max-w-md py-16 px-4">
-      <Card className="bg-neutral-900 border-neutral-800 rounded-none text-white shadow-xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-serif tracking-widest uppercase">AURIX</CardTitle>
-          <CardDescription className="text-gray-400">Sign in or create an account</CardDescription>
+    <div className="container mx-auto max-w-lg py-16 px-4">
+      <Card className="bg-card border border-border rounded-xl text-foreground shadow-lg">
+        <CardHeader className="text-center pb-6">
+          <span className="text-[10px] font-semibold tracking-[0.3em] text-[#C5A880] uppercase mb-1 block">
+            Maison Account
+          </span>
+          <CardTitle className="text-3xl font-serif tracking-[0.2em] uppercase text-foreground">AURIX</CardTitle>
+          <CardDescription className="text-muted-foreground text-xs mt-1">
+            Access your orders, bespoke wishlist, and fragrance profile
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={defaultTab} onValueChange={setDefaultTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6 bg-neutral-800 rounded-none p-1">
-              <TabsTrigger value="signin" className="data-[state=active]:bg-perfume-gold data-[state=active]:text-black rounded-none">Sign In</TabsTrigger>
-              <TabsTrigger value="signup" className="data-[state=active]:bg-perfume-gold data-[state=active]:text-black rounded-none">Create Account</TabsTrigger>
-              <TabsTrigger value="forgot" className="data-[state=active]:bg-perfume-gold data-[state=active]:text-black rounded-none">Reset Password</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/60 border border-border rounded-lg p-1">
+              <TabsTrigger value="signin" className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md text-xs font-medium py-2">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md text-xs font-medium py-2">Create Account</TabsTrigger>
+              <TabsTrigger value="forgot" className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md text-xs font-medium py-2">Reset Password</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin">
@@ -323,60 +316,60 @@ const Auth = () => {
 
                 <div className="relative my-4">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-neutral-800" />
+                    <span className="w-full border-t border-border/80" />
                   </div>
                   <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-                    <span className="bg-neutral-900 px-3 text-neutral-500 font-semibold">Or with email</span>
+                    <span className="bg-card px-3 text-muted-foreground font-semibold">Or with email</span>
                   </div>
                 </div>
 
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                    <Label htmlFor="signin-email" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Email</Label>
                     <Input
                       id="signin-email"
                       type="email"
                       placeholder="your.email@example.com"
                       required
-                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground rounded-md h-11 text-sm focus:ring-1 focus:ring-[#C5A880] focus:border-[#C5A880]"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
+                    <Label htmlFor="signin-password" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Password</Label>
                     <Input
                       id="signin-password"
                       type="password"
                       placeholder="••••••••"
                       required
-                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground rounded-md h-11 text-sm focus:ring-1 focus:ring-[#C5A880] focus:border-[#C5A880]"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full bg-perfume-gold text-black hover:bg-yellow-600 rounded-none uppercase tracking-widest text-xs font-bold h-12 mt-4" 
+                    className="w-full btn-gold h-11 text-xs uppercase tracking-wider font-semibold mt-4 shadow-sm" 
                     disabled={isLoading || isGoogleLoading}
                   >
                     {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
-                  <div className="flex flex-col gap-2 mt-4 text-center text-sm">
+                  <div className="flex flex-col gap-2 mt-4 text-center text-xs">
                     <Button
                       type="button"
                       variant="link"
-                      className="text-perfume-gold hover:text-white underline-offset-4 hover:underline h-auto p-0"
+                      className="text-[#C5A880] hover:text-foreground underline-offset-4 hover:underline h-auto p-0"
                       onClick={() => setDefaultTab("forgot")}
                     >
                       Forgot your password?
                     </Button>
-                    <div className="text-gray-400">
+                    <div className="text-muted-foreground">
                       Don't have an account?{" "}
                       <Button
                         type="button"
                         variant="link"
-                        className="text-perfume-gold hover:text-white underline-offset-4 hover:underline h-auto p-0"
+                        className="text-[#C5A880] hover:text-foreground underline-offset-4 hover:underline h-auto p-0 font-semibold"
                         onClick={() => setDefaultTab("signup")}
                       >
                         Create account
@@ -398,92 +391,92 @@ const Auth = () => {
 
                 <div className="relative my-4">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-neutral-800" />
+                    <span className="w-full border-t border-border/80" />
                   </div>
                   <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-                    <span className="bg-neutral-900 px-3 text-neutral-500 font-semibold">Or with email</span>
+                    <span className="bg-card px-3 text-muted-foreground font-semibold">Or with email</span>
                   </div>
                 </div>
 
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="signup-firstname">First Name</Label>
+                      <Label htmlFor="signup-firstname" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">First Name</Label>
                       <Input
                         id="signup-firstname"
                         type="text"
                         placeholder="John"
                         required
-                        className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                        className="bg-background border-border text-foreground placeholder:text-muted-foreground rounded-md h-11 text-sm focus:ring-1 focus:ring-[#C5A880] focus:border-[#C5A880]"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="signup-lastname">Last Name</Label>
+                      <Label htmlFor="signup-lastname" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Last Name</Label>
                       <Input
                         id="signup-lastname"
                         type="text"
                         placeholder="Doe"
                         required
-                        className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                        className="bg-background border-border text-foreground placeholder:text-muted-foreground rounded-md h-11 text-sm focus:ring-1 focus:ring-[#C5A880] focus:border-[#C5A880]"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Email</Label>
                     <Input
                       id="signup-email"
                       type="email"
                       placeholder="your.email@example.com"
                       required
-                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground rounded-md h-11 text-sm focus:ring-1 focus:ring-[#C5A880] focus:border-[#C5A880]"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-password" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Password</Label>
                     <Input
                       id="signup-password"
                       type="password"
                       placeholder="••••••••"
                       required
                       minLength={6}
-                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground rounded-md h-11 text-sm focus:ring-1 focus:ring-[#C5A880] focus:border-[#C5A880]"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
-                    <p className="text-xs text-gray-500">Password must be at least 6 characters</p>
+                    <p className="text-[11px] text-muted-foreground">Password must be at least 6 characters</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-confirm-password">Confirm Password</Label>
+                    <Label htmlFor="signup-confirm-password" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Confirm Password</Label>
                     <Input
                       id="signup-confirm-password"
                       type="password"
                       placeholder="••••••••"
                       required
                       minLength={6}
-                      className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground rounded-md h-11 text-sm focus:ring-1 focus:ring-[#C5A880] focus:border-[#C5A880]"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                     />
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full bg-perfume-gold text-black hover:bg-yellow-600 rounded-none uppercase tracking-widest text-xs font-bold h-12 mt-4" 
+                    className="w-full btn-gold h-11 text-xs uppercase tracking-wider font-semibold mt-4 shadow-sm" 
                     disabled={isLoading || isGoogleLoading}
                   >
                     {isLoading ? "Creating account..." : "Create Account"}
                   </Button>
-                  <div className="text-center mt-4 text-sm text-gray-400">
+                  <div className="text-center mt-4 text-xs text-muted-foreground">
                     Already have an account?{" "}
                     <Button
                       type="button"
                       variant="link"
-                      className="text-perfume-gold hover:text-white underline-offset-4 hover:underline h-auto p-0"
+                      className="text-[#C5A880] hover:text-foreground underline-offset-4 hover:underline h-auto p-0 font-semibold"
                       onClick={() => setDefaultTab("signin")}
                     >
                       Sign in
@@ -500,20 +493,20 @@ const Auth = () => {
                     <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4">
                       <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
                     </div>
-                    <h3 className="text-lg font-semibold">Check your email</h3>
-                    <p className="text-sm text-muted-foreground">
-                      We've sent a password reset link to <strong>{lastSentEmail || email}</strong>
+                    <h3 className="font-serif text-lg font-medium">Check your email</h3>
+                    <p className="text-xs text-muted-foreground">
+                      We've sent a password reset link to <strong className="text-foreground">{lastSentEmail || email}</strong>
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Click the link in the email to reset your password. The link will expire in 1 hour.
                     </p>
                     
-                    <div className="bg-neutral-800 rounded-none p-4 text-left space-y-2 mt-4 border border-neutral-700">
-                      <p className="text-xs font-medium text-white flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-perfume-gold" />
+                    <div className="bg-muted/40 rounded-lg p-4 text-left space-y-2 mt-4 border border-border">
+                      <p className="text-xs font-medium text-foreground flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-[#C5A880]" />
                         Didn't receive the email?
                       </p>
-                      <ul className="text-xs text-gray-400 space-y-1 ml-6">
+                      <ul className="text-[11px] text-muted-foreground space-y-1 ml-6">
                         <li>• Check your spam or junk folder</li>
                         <li>• Make sure you entered the correct email</li>
                         <li>• Wait a few minutes for the email to arrive</li>
@@ -523,7 +516,7 @@ const Auth = () => {
                     <div className="pt-4 space-y-2">
                       <Button 
                         type="button" 
-                        className="w-full bg-perfume-gold text-black hover:bg-yellow-600 rounded-none uppercase tracking-widest text-xs font-bold h-12" 
+                        className="w-full btn-gold h-11 text-xs uppercase tracking-wider font-semibold" 
                         onClick={() => {
                           setResetSent(false);
                           setDefaultTab("signin");
@@ -534,7 +527,7 @@ const Auth = () => {
                       <Button
                         type="button"
                         variant="ghost"
-                        className="w-full flex items-center justify-center gap-2"
+                        className="w-full flex items-center justify-center gap-2 text-xs"
                         onClick={handleResendEmail}
                         disabled={resendCooldown > 0 || isLoading}
                       >
@@ -553,7 +546,6 @@ const Auth = () => {
                         )}
                       </Button>
                       
-                      {/* Rate limit warning */}
                       {!resetRateLimit.isAllowed(lastSentEmail || email) && (
                         <div className="flex items-center gap-2 text-xs text-destructive mt-2">
                           <AlertCircle className="w-4 h-4" />
@@ -567,26 +559,26 @@ const Auth = () => {
                 ) : (
                   <>
                     <div className="text-center mb-4">
-                      <h3 className="text-lg font-semibold mb-2">Forgot your password?</h3>
-                      <p className="text-sm text-muted-foreground">
+                      <h3 className="font-serif text-lg font-medium mb-1">Forgot your password?</h3>
+                      <p className="text-xs text-muted-foreground">
                         Enter your email address and we'll send you a link to reset your password.
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="reset-email">Email address</Label>
+                      <Label htmlFor="reset-email" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Email address</Label>
                       <Input
                         id="reset-email"
                         type="email"
                         placeholder="your.email@example.com"
                         required
-                        className="bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 rounded-none h-12"
+                        className="bg-background border-border text-foreground placeholder:text-muted-foreground rounded-md h-11 text-sm focus:ring-1 focus:ring-[#C5A880] focus:border-[#C5A880]"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </div>
                     <Button 
                       type="submit" 
-                      className="w-full bg-perfume-gold text-black hover:bg-yellow-600 rounded-none uppercase tracking-widest text-xs font-bold h-12 mt-4" 
+                      className="w-full btn-gold h-11 text-xs uppercase tracking-wider font-semibold mt-4 shadow-sm" 
                       disabled={isLoading}
                     >
                       {isLoading ? "Sending reset link..." : "Send Reset Link"}
@@ -595,7 +587,7 @@ const Auth = () => {
                       <Button
                         type="button"
                         variant="link"
-                        className="text-sm text-perfume-gold hover:text-white h-auto p-0 transition-colors"
+                        className="text-xs text-[#C5A880] hover:text-foreground h-auto p-0 transition-colors"
                         onClick={() => setDefaultTab("signin")}
                       >
                         ← Back to Sign In
@@ -607,8 +599,13 @@ const Auth = () => {
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="text-center text-xs text-gray-500 flex justify-center pb-6">
-          By signing in, you agree to our Terms of Service and Privacy Policy.
+        <CardFooter className="text-center text-[11px] text-muted-foreground flex justify-center pb-6">
+          <span>
+            By continuing, you agree to our{" "}
+            <Link to="/terms" className="text-[#C5A880] hover:underline font-medium">Terms of Service</Link>
+            {" "}and{" "}
+            <Link to="/privacy-policy" className="text-[#C5A880] hover:underline font-medium">Privacy Policy</Link>.
+          </span>
         </CardFooter>
       </Card>
     </div>

@@ -76,10 +76,10 @@ serve(async (req: any) => {
       });
     }
 
-    // Verify order belongs to user
+    // Verify order belongs to user and is in a payable state
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("id, user_id, total_amount")
+      .select("id, user_id, total_amount, payment_status, discount_amount, shipping, tax, subtotal")
       .eq("id", body.orderId)
       .single();
 
@@ -88,6 +88,25 @@ serve(async (req: any) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (order.payment_status === "paid") {
+      return new Response(JSON.stringify({ error: "Order is already paid" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Zero or negative orders cannot be processed through Stripe Checkout sessions
+    const totalOrderAmountINR = Number(order.total_amount);
+    if (!totalOrderAmountINR || Math.round(totalOrderAmountINR * 100) <= 0) {
+      return new Response(
+        JSON.stringify({ error: "Orders with total amount of zero or less cannot be processed through Stripe" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Fetch actual order items from DB to ensure prices and quantities are authentic and cannot be tampered with
@@ -131,35 +150,81 @@ serve(async (req: any) => {
       };
     });
 
-    // Validate that shipping and tax do not exceed total_amount
-    const subtotal = dbItems.reduce(
+    // Authoritative pricing breakdown calculation
+    // Derives catalog subtotal strictly from DB items
+    const catalogSubtotal = dbItems.reduce(
       (sum: number, it: any) => sum + Number(it.unit_price) * it.quantity,
       0
     );
-    const expectedRemaining = Math.max(0, Number(order.total_amount) - subtotal);
-    const requestedExtra = (body.shipping || 0) + (body.tax || 0);
 
-    // If extra fees match or are less than remaining total_amount, safely attach them
-    if (body.shipping > 0 && requestedExtra <= expectedRemaining + 1) {
+    const dbDiscount = Number(order.discount_amount) || 0;
+    const netSubtotal = Math.max(0, catalogSubtotal - dbDiscount);
+
+    // Authoritative fee resolution:
+    // If order has explicitly stored tax/shipping (from create_order_atomic), use them.
+    // If order was created by create_authoritative_order where shipping & tax defaulted to 0,
+    // derive them server-side from total_amount and netSubtotal according to the authoritative business rules
+    // (8% tax on net subtotal, remainder to shipping), completely immune to client-side payload tampering.
+    let dbShipping = 0;
+    let dbTax = 0;
+
+    const storedShipping = Number(order.shipping) || 0;
+    const storedTax = Number(order.tax) || 0;
+
+    if (storedShipping > 0 || storedTax > 0) {
+      dbShipping = storedShipping;
+      dbTax = storedTax;
+    } else {
+      const extraFees = Math.round((totalOrderAmountINR - netSubtotal) * 100) / 100;
+      if (extraFees > 0) {
+        const expectedTax = Math.round(netSubtotal * 0.08 * 100) / 100;
+        if (Math.abs(extraFees - expectedTax) <= 0.05) {
+          dbTax = extraFees;
+          dbShipping = 0;
+        } else if (extraFees > expectedTax) {
+          dbTax = expectedTax;
+          dbShipping = Math.round((extraFees - expectedTax) * 100) / 100;
+        } else {
+          dbTax = extraFees;
+          dbShipping = 0;
+        }
+      }
+    }
+
+    // Attach shipping line item if applicable
+    if (dbShipping > 0) {
       lineItems.push({
         price_data: {
           currency: "inr",
           product_data: { name: "Shipping" },
-          unit_amount: Math.round(body.shipping * 100),
+          unit_amount: Math.round(dbShipping * 100),
         },
         quantity: 1,
       });
     }
 
-    if (body.tax > 0 && requestedExtra <= expectedRemaining + 1) {
+    // Attach tax line item if applicable
+    if (dbTax > 0) {
       lineItems.push({
         price_data: {
           currency: "inr",
           product_data: { name: "Tax (8%)" },
-          unit_amount: Math.round(body.tax * 100),
+          unit_amount: Math.round(dbTax * 100),
         },
         quantity: 1,
       });
+    }
+
+    // Authoritative discount via Stripe Coupon
+    let discounts: { coupon: string }[] | undefined = undefined;
+    if (dbDiscount > 0) {
+      const stripeCoupon = await stripe.coupons.create({
+        amount_off: Math.round(dbDiscount * 100),
+        currency: "inr",
+        duration: "once",
+        name: "Order Discount",
+      });
+      discounts = [{ coupon: stripeCoupon.id }];
     }
 
     const origin = req.headers.get("origin") || "http://localhost:8080";
@@ -169,6 +234,7 @@ serve(async (req: any) => {
       payment_method_types: ["card"],
       customer_email: user.email,
       line_items: lineItems,
+      ...(discounts ? { discounts } : {}),
       success_url: `${origin}${body.successPath || "/order-confirmation"}?session_id={CHECKOUT_SESSION_ID}&order_id=${body.orderId}`,
       cancel_url: `${origin}${body.cancelPath || "/checkout"}?canceled=1`,
       metadata: {
@@ -177,12 +243,20 @@ serve(async (req: any) => {
       },
     });
 
-    // Save session id as payment_reference
-    await supabase
+    // Save session id as payment_reference and persist authoritative pricing breakdown
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const adminClient = serviceRoleKey
+      ? createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey, { auth: { persistSession: false } })
+      : supabase;
+
+    await adminClient
       .from("orders")
       .update({
         payment_reference: session.id,
         payment_method: "card",
+        subtotal: catalogSubtotal,
+        shipping: dbShipping,
+        tax: dbTax,
       })
       .eq("id", body.orderId);
 

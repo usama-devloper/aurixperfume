@@ -1,168 +1,125 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Briefcase, MapPin, Clock, Users, Heart, Sparkles, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Sparkles, Heart, Users, Mail, ArrowLeft, CheckCircle2, Award } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-const jobOpenings = [
-  {
-    id: 1,
-    title: "Senior Perfumer",
-    department: "Creative",
-    location: "Paris, France",
-    type: "Full-time",
-    description: "Join our creative team to develop innovative fragrance compositions using the finest ingredients from around the world."
-  },
-  {
-    id: 2,
-    title: "Brand Marketing Manager",
-    department: "Marketing",
-    location: "London, UK",
-    type: "Full-time",
-    description: "Lead our brand marketing initiatives and develop compelling campaigns that resonate with luxury fragrance consumers."
-  },
-  {
-    id: 3,
-    title: "E-commerce Specialist",
-    department: "Digital",
-    location: "Remote",
-    type: "Full-time",
-    description: "Optimize our online shopping experience and drive digital sales growth across all platforms."
-  },
-  {
-    id: 4,
-    title: "Quality Assurance Analyst",
-    department: "Operations",
-    location: "Dubai, UAE",
-    type: "Full-time",
-    description: "Ensure the highest quality standards for our fragrance products through rigorous testing and analysis."
-  }
-];
-
-const benefits = [
-  {
-    icon: Heart,
-    title: "Health & Wellness",
-    description: "Comprehensive health insurance, gym memberships, and wellness programs."
-  },
+const ATELIER_VALUES = [
   {
     icon: Sparkles,
-    title: "Product Perks",
-    description: "Generous discounts on our fragrances and exclusive access to new launches."
+    title: "Artisanal Integrity",
+    description: "We honor ancient maceration rituals, small-batch hand-compounding, and harvest-grade botanicals over industrial speed.",
   },
   {
-    icon: Globe,
-    title: "Global Opportunities",
-    description: "Work with teams worldwide and opportunities for international transfers."
+    icon: Heart,
+    title: "Uncompromising Passion",
+    description: "Every flacon represents devotion to olfactive storytelling, evocative chords, and enduring skin chemistry.",
   },
   {
     icon: Users,
-    title: "Growth & Learning",
-    description: "Professional development programs, mentorship, and career advancement paths."
-  }
+    title: "Collaborative Craft",
+    description: "We cultivate a sanctuary where perfume compounding assistants, bottle artisans, and storytellers refine their senses.",
+  },
+  {
+    icon: Award,
+    title: "Heritage & Modernity",
+    description: "Rooted in the timeless distilling traditions of India while mastering French haute perfumery aesthetics.",
+  },
 ];
 
 const Careers = () => {
   return (
-    <div className="container mx-auto px-4 py-12">
-      {/* Hero Section */}
-      <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-serif mb-4">Join Our Team</h1>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          Be part of a passionate team dedicated to crafting exceptional fragrances. 
-          We're always looking for talented individuals who share our commitment to excellence.
-        </p>
-      </div>
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Hero Header */}
+      <section className="py-16 lg:py-24 text-center border-b border-border/80 bg-[#F7F4EE] dark:bg-[#141211]">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <span className="text-[10px] font-semibold tracking-[0.3em] text-[#C5A880] uppercase mb-2 block">
+            Atelier Talent & Artisanship
+          </span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-medium text-foreground tracking-tight mb-4">
+            Join Our Atelier
+          </h1>
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-xl mx-auto">
+            Discover the artisanal devotion behind AURIX. We are an independent fragrance maison rooted in Ahmedabad, crafting olfactory poetry from raw resins, noble woods, and precious botanicals.
+          </p>
+        </div>
+      </section>
 
-      {/* Why Join Us */}
-      <div className="mb-24">
-        <h2 className="text-3xl font-sans font-black tracking-widest mb-10 text-center uppercase">Why Work at AURIX?</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {benefits.map((benefit, index) => (
-            <Card key={index} className="text-center border-none shadow-md rounded-none">
-              <CardContent className="pt-6">
-                <div className="bg-neutral-100 w-12 h-12 rounded-none flex items-center justify-center mx-auto mb-4">
-                  <benefit.icon className="text-black h-6 w-6" />
+      {/* Philosophy & Culture */}
+      <section className="py-16 container mx-auto px-4 lg:px-8 max-w-4xl">
+        <div className="text-center mb-12">
+          <span className="text-xs font-semibold tracking-[0.25em] text-[#C5A880] uppercase mb-2 block">
+            Our Olfactive Ethos
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-serif font-medium text-foreground tracking-tight">
+            The Culture of Haute Perfumery
+          </h2>
+          <div className="w-12 h-[1px] bg-[#C5A880] mx-auto mt-3"></div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+          {ATELIER_VALUES.map((val, idx) => (
+            <Card key={idx} className="bg-card border-border shadow-sm rounded-xl p-2">
+              <CardContent className="p-6 space-y-3">
+                <div className="w-10 h-10 rounded-full bg-[#C5A880]/10 flex items-center justify-center text-[#C5A880]">
+                  <val.icon className="w-5 h-5" />
                 </div>
-                <h3 className="font-serif text-lg mb-2">{benefit.title}</h3>
-                <p className="text-gray-600 text-sm">{benefit.description}</p>
+                <h3 className="font-serif text-lg font-semibold text-foreground">{val.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{val.description}</p>
               </CardContent>
             </Card>
           ))}
         </div>
-      </div>
 
-      {/* Culture Section */}
-      <div className="bg-neutral-50 rounded-none border border-neutral-100 p-10 mb-24">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl font-sans font-black tracking-widest mb-6 uppercase">Our Culture</h2>
-          <p className="mb-6 text-neutral-700 leading-relaxed text-sm">
-            At AURIX, we believe that great fragrances come from great people. Our culture is built on 
-            creativity, collaboration, and a shared passion for the art of perfumery. We celebrate 
-            diversity, encourage innovation, and support each team member's growth.
-          </p>
-          <p className="text-neutral-700 leading-relaxed text-sm">
-            Whether you're in our creative labs, marketing offices, or retail boutiques, you'll find 
-            a welcoming environment where your ideas are valued and your contributions make a real impact.
+        {/* Current Vacancies Status Banner */}
+        <div className="rounded-xl border border-border bg-card shadow-sm p-8 text-center space-y-4 mb-16">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#C5A880]" />
+            Atelier Roster Status
+          </span>
+          <h3 className="font-serif text-2xl font-medium text-foreground">
+            Current Vacancy Status
+          </h3>
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            Our atelier compounding and creative positions are currently fully staffed, and there are no active public vacancies at this time. However, as an evolving maison, we always cherish discovering extraordinary talent.
           </p>
         </div>
-      </div>
 
-      {/* Open Positions */}
-      <div className="mb-24">
-        <h2 className="text-3xl font-serif mb-10 text-center">Open Positions</h2>
-        <div className="space-y-4">
-          {jobOpenings.map((job) => (
-            <Card key={job.id} className="hover:shadow-lg transition-shadow rounded-none border border-neutral-200">
-              <CardHeader className="pb-2">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div>
-                    <CardTitle className="font-sans font-bold text-xl uppercase tracking-wider">{job.title}</CardTitle>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Badge variant="secondary" className="bg-neutral-100 text-neutral-800 rounded-none border border-neutral-200">
-                        {job.department}
-                      </Badge>
-                      <div className="flex items-center gap-1 text-gray-500 text-sm">
-                        <MapPin className="h-4 w-4" />
-                        {job.location}
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-500 text-sm">
-                        <Clock className="h-4 w-4" />
-                        {job.type}
-                      </div>
-                    </div>
-                  </div>
-                  <Button className="bg-black hover:bg-neutral-800 text-white rounded-none uppercase text-xs tracking-wider md:self-start">
-                    Apply Now
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">{job.description}</p>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Speculative Talent Inquiry Box */}
+        <div className="rounded-xl border border-[#C5A880]/50 bg-[#C5A880]/10 p-8 text-center space-y-4">
+          <Mail className="w-8 h-8 text-[#C5A880] mx-auto" />
+          <h3 className="font-serif text-xl sm:text-2xl font-medium text-foreground">
+            Expressions of Interest
+          </h3>
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            If you are an apprentice compounding chemist, evaluated nosologist, botanical sourcer, luxury packaging artisan, or visual storyteller who feels an affinity with AURIX, we welcome your dossier.
+          </p>
+          <p className="text-xs text-foreground font-mono">
+            Send your portfolio or CV to: <a href="mailto:aurixperfume25@gmail.com" className="text-[#C5A880] hover:underline font-bold">aurixperfume25@gmail.com</a>
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-3">
+            <Button asChild className="btn-gold text-xs uppercase tracking-wider font-semibold">
+              <a href="mailto:aurixperfume25@gmail.com?subject=Atelier%20Talent%20Inquiry%20%E2%80%94%20AURIX">
+                Send Talent Inquiry
+              </a>
+            </Button>
+            <Button asChild variant="outline" className="border-border text-foreground hover:bg-muted text-xs uppercase tracking-wider font-semibold">
+              <Link to="/about">Explore Our Story</Link>
+            </Button>
+            <Button asChild variant="outline" className="border-border text-foreground hover:bg-muted text-xs uppercase tracking-wider font-semibold">
+              <Link to="/contact">Contact Atelier</Link>
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Don't See Your Role */}
-      <div className="text-center bg-neutral-100 rounded-none p-10">
-        <Briefcase className="h-12 w-12 text-black mx-auto mb-4" />
-        <h2 className="text-2xl font-sans font-black tracking-widest mb-4 uppercase">Don't See Your Role?</h2>
-        <p className="text-neutral-700 max-w-xl mx-auto mb-6 text-sm">
-          We're always interested in meeting talented individuals. Send us your resume and 
-          tell us how you can contribute to the AURIX team.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button asChild className="bg-black hover:bg-neutral-800 text-white rounded-none uppercase text-xs tracking-wider">
-            <Link to="/contact">Contact Us</Link>
-          </Button>
-          <Button asChild variant="outline" className="border-black text-black rounded-none uppercase text-xs tracking-wider hover:bg-black hover:text-white">
-            <Link to="/about">Learn About Us</Link>
+        {/* Back CTA */}
+        <div className="mt-12 text-center">
+          <Button asChild variant="ghost" className="text-xs uppercase tracking-wider font-semibold text-muted-foreground hover:text-foreground">
+            <Link to="/" className="inline-flex items-center gap-2">
+              <ArrowLeft className="w-3.5 h-3.5" /> Return to Maison
+            </Link>
           </Button>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

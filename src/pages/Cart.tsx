@@ -197,7 +197,7 @@ const Cart = () => {
             <div className="space-y-3">
               <Button
                 onClick={() => navigate("/checkout")}
-                className="w-full bg-[#1C1917] hover:bg-[#2B2724] text-[#FAF8F5] rounded-md uppercase tracking-wider text-xs font-semibold py-6 shadow-sm"
+                className="w-full btn-gold rounded-md uppercase tracking-wider text-xs font-semibold py-6 shadow-sm"
                 size="lg"
               >
                 Proceed to Checkout →

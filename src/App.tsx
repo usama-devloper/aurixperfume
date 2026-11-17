@@ -39,6 +39,12 @@ import Careers from "@/pages/Careers";
 import AdminHub from "@/pages/AdminHub";
 import AdminCoupons from "@/pages/AdminCoupons";
 import AdminApiLogs from "@/pages/AdminApiLogs";
+import AdminReturnRequests from "@/pages/AdminReturnRequests";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import Terms from "@/pages/Terms";
+import Shipping from "@/pages/Shipping";
+import FAQ from "@/pages/FAQ";
+import ReturnRequest from "@/pages/ReturnRequest";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { FloatingAdminButton } from "@/components/admin/FloatingAdminButton";
 
@@ -61,12 +67,18 @@ const AnimatedRoutes = () => {
         <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
         <Route path="/order-confirmation" element={<PageTransition><OrderConfirmation /></PageTransition>} />
         <Route path="/order-tracking" element={<PageTransition><OrderTracking /></PageTransition>} />
+        <Route path="/shipping" element={<PageTransition><Shipping /></PageTransition>} />
+        <Route path="/faq" element={<PageTransition><FAQ /></PageTransition>} />
+        <Route path="/return-request" element={<PageTransition><ReturnRequest /></PageTransition>} />
+        <Route path="/privacy-policy" element={<PageTransition><PrivacyPolicy /></PageTransition>} />
+        <Route path="/terms" element={<PageTransition><Terms /></PageTransition>} />
         <Route path="/orders" element={<PageTransition><Profile /></PageTransition>} />
         <Route path="/profile" element={<PageTransition><Profile /></PageTransition>} />
         <Route path="/dashboard" element={<PageTransition><AdminLayout><Dashboard /></AdminLayout></PageTransition>} />
         
         {/* Admin routes */}
         <Route path="/admin" element={<PageTransition><AdminLayout><AdminHub /></AdminLayout></PageTransition>} />
+        <Route path="/admin/returns" element={<PageTransition><AdminLayout><AdminReturnRequests /></AdminLayout></PageTransition>} />
         <Route path="/admin/coupons" element={<PageTransition><AdminLayout><AdminCoupons /></AdminLayout></PageTransition>} />
         <Route path="/admin/api-logs" element={<PageTransition><AdminLayout><AdminApiLogs /></AdminLayout></PageTransition>} />
         <Route path="/product-manager" element={<PageTransition><AdminLayout><ProductManager /></AdminLayout></PageTransition>} />

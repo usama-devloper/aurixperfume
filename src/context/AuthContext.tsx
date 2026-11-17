@@ -34,12 +34,83 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   });
 
   useEffect(() => {
+    let mounted = true;
+
+    // Helper to check if URL contains an OAuth or token callback
+    const hasAuthCallbackInUrl = () => {
+      if (typeof window === "undefined") return false;
+      const search = window.location.search || "";
+      const hash = window.location.hash || "";
+      return (
+        search.includes("code=") ||
+        search.includes("error=") ||
+        hash.includes("access_token=") ||
+        hash.includes("error=")
+      );
+    };
+
+    // Check for OAuth error in URL search or hash
+    const checkOAuthErrors = () => {
+      if (typeof window === "undefined") return;
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+        const error = searchParams.get("error") || hashParams.get("error");
+        const errorDescription = searchParams.get("error_description") || hashParams.get("error_description");
+
+        if (error || errorDescription) {
+          console.warn("[AuthContext] OAuth error received:", error, errorDescription);
+          toast({
+            title: "Authentication Failed",
+            description: errorDescription || "Could not complete sign in with Google. Please try again.",
+            variant: "destructive",
+          });
+
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete("error");
+          cleanUrl.searchParams.delete("error_description");
+          cleanUrl.searchParams.delete("error_code");
+          window.history.replaceState(window.history.state, "", cleanUrl.toString());
+        }
+      } catch (e) {
+        // Safe fallback in non-browser or test environments
+      }
+    };
+
+    checkOAuthErrors();
+
     // Set up auth state listener FIRST
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      if (!mounted) return;
+
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+
+      // On callback completion (SIGNED_IN) or resolved events, release loading
+      if (event === "SIGNED_IN" || event === "USER_UPDATED" || event === "SIGNED_OUT") {
+        setLoading(false);
+
+        // Clean code query parameter from URL if present
+        if (typeof window !== "undefined" && window.location.search.includes("code=")) {
+          try {
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete("code");
+            cleanUrl.searchParams.delete("state");
+            window.history.replaceState(window.history.state, "", cleanUrl.toString());
+          } catch (e) {
+            // Ignore
+          }
+        }
+      } else if (event === "INITIAL_SESSION") {
+        // If there is no OAuth callback in flight, INITIAL_SESSION resolves loading immediately.
+        // If there IS an OAuth callback in flight, wait for SIGNED_IN event to finish PKCE exchange.
+        if (currentSession || !hasAuthCallbackInUrl()) {
+          setLoading(false);
+        }
+      }
 
       // Password recovery links often land on "/" (/#...) and Supabase immediately cleans the URL.
       // Redirect as soon as Supabase confirms PASSWORD_RECOVERY so users always see /reset-password.
@@ -49,28 +120,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // Check if user is admin
-      if (session?.user) {
+      // Check if user is admin safely without blocking the auth event thread
+      if (currentSession?.user) {
         setTimeout(() => {
-          checkIfAdmin();
+          if (mounted) checkIfAdmin();
         }, 0);
       } else {
         setIsAdmin(false);
       }
     });
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        checkIfAdmin();
+    // Check for existing session (fast-path for normal page visits)
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      if (!mounted) return;
+
+      if (existingSession) {
+        setSession(existingSession);
+        setUser(existingSession.user ?? null);
+        setTimeout(() => {
+          if (mounted) checkIfAdmin();
+        }, 0);
+        setLoading(false);
+      } else if (!hasAuthCallbackInUrl()) {
+        // Only mark loading complete if there is no pending OAuth code exchange in the URL
+        setLoading(false);
       }
-      setLoading(false);
+    }).catch((err) => {
+      console.warn("[AuthContext] getSession fallback error:", err);
+      if (mounted && !hasAuthCallbackInUrl()) {
+        setLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    // Safety timeout: If OAuth code exchange stalls or hangs indefinitely,
+    // guarantee loading state is released so the user is never frozen.
+    const safetyTimer = setTimeout(() => {
+      if (mounted) {
+        setLoading((prev) => (prev ? false : prev));
+      }
+    }, 8000);
+
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkIfAdmin = async () => {

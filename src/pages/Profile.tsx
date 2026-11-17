@@ -11,11 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { PackageCheck, MapPin, User, Shield, MapPinPlus, Trash2, Pencil, Heart } from "lucide-react";
+import { PackageCheck, MapPin, User, Shield, MapPinPlus, Trash2, Pencil, Heart, Loader2 } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
 import ProductCard from "@/components/product/ProductCard";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
 
 const Profile = () => {
   const { user, loading } = useAuth();
@@ -23,8 +21,8 @@ const Profile = () => {
   if (loading) {
     return (
       <div className="container mx-auto py-24 flex flex-col justify-center items-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-perfume-gold" />
-        <p className="text-xs uppercase tracking-widest text-neutral-400">Loading your profile...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-[#C5A880]" />
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">Loading your profile...</p>
       </div>
     );
   }
@@ -34,28 +32,31 @@ const Profile = () => {
   }
 
   return (
-    <div className="container mx-auto py-12 px-4 max-w-6xl">
+    <div className="container mx-auto py-12 px-4 lg:px-8 max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-serif font-bold text-white">My Account</h1>
-        <p className="text-gray-400 mt-2">Manage your profile, addresses, and orders.</p>
+        <span className="text-[10px] font-semibold tracking-[0.3em] text-[#C5A880] uppercase mb-1 block">
+          Client Sanctuary
+        </span>
+        <h1 className="text-3xl font-serif font-medium text-foreground">My Account</h1>
+        <p className="text-muted-foreground text-sm mt-1">Manage your order history, delivery addresses, and personal profile.</p>
       </div>
 
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="mb-8 bg-neutral-900 border border-neutral-800 rounded-none p-0 h-auto">
-          <TabsTrigger value="orders" className="data-[state=active]:bg-perfume-gold data-[state=active]:text-black text-gray-400 rounded-none px-6 py-3 font-bold uppercase tracking-widest text-[10px]">
-            <PackageCheck className="w-4 h-4 mr-2" />
-            My Orders
+        <TabsList className="mb-8 bg-muted/60 border border-border rounded-lg p-1 h-auto flex flex-wrap gap-1 max-w-2xl">
+          <TabsTrigger value="orders" className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md px-5 py-2.5 font-semibold uppercase tracking-wider text-xs">
+            <PackageCheck className="w-3.5 h-3.5 mr-2 text-[#C5A880]" />
+            Orders
           </TabsTrigger>
-          <TabsTrigger value="profile" className="data-[state=active]:bg-perfume-gold data-[state=active]:text-black text-gray-400 rounded-none px-6 py-3 font-bold uppercase tracking-widest text-[10px]">
-            <User className="w-4 h-4 mr-2" />
+          <TabsTrigger value="profile" className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md px-5 py-2.5 font-semibold uppercase tracking-wider text-xs">
+            <User className="w-3.5 h-3.5 mr-2 text-[#C5A880]" />
             Personal Info
           </TabsTrigger>
-          <TabsTrigger value="addresses" className="data-[state=active]:bg-perfume-gold data-[state=active]:text-black text-gray-400 rounded-none px-6 py-3 font-bold uppercase tracking-widest text-[10px]">
-            <MapPin className="w-4 h-4 mr-2" />
+          <TabsTrigger value="addresses" className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md px-5 py-2.5 font-semibold uppercase tracking-wider text-xs">
+            <MapPin className="w-3.5 h-3.5 mr-2 text-[#C5A880]" />
             Addresses
           </TabsTrigger>
-          <TabsTrigger value="wishlist" className="data-[state=active]:bg-perfume-gold data-[state=active]:text-black text-gray-400 rounded-none px-6 py-3 font-bold uppercase tracking-widest text-[10px]">
-            <Heart className="w-4 h-4 mr-2" />
+          <TabsTrigger value="wishlist" className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md px-5 py-2.5 font-semibold uppercase tracking-wider text-xs">
+            <Heart className="w-3.5 h-3.5 mr-2 text-[#C5A880]" />
             Wishlist
           </TabsTrigger>
         </TabsList>
@@ -89,49 +90,51 @@ const OrdersTab = () => {
   const { orders, loading } = useOrders();
 
   return (
-    <Card className="rounded-none border-neutral-800 bg-neutral-900 shadow-none">
+    <Card className="rounded-xl border border-border bg-card shadow-sm">
       <CardHeader>
-        <CardTitle className="text-2xl font-serif text-white">Order History</CardTitle>
-        <CardDescription className="text-gray-400">Track and view all your past orders.</CardDescription>
+        <CardTitle className="text-2xl font-serif text-foreground">Order History</CardTitle>
+        <CardDescription className="text-muted-foreground text-xs">Review details, status, and tracking for all previous orders.</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-muted-foreground">Loading your orders...</p>
+          <div className="py-12 flex justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-[#C5A880]" />
+          </div>
         ) : orders.length > 0 ? (
-          <div className="rounded-none border border-neutral-800 overflow-hidden">
+          <div className="rounded-lg border border-border overflow-hidden">
             <Table>
-              <TableHeader className="bg-[#111111] border-b border-neutral-800">
-                <TableRow className="border-neutral-800 hover:bg-[#111111]">
-                  <TableHead className="w-[120px] text-gray-400">Order Number</TableHead>
-                  <TableHead className="text-gray-400">Date</TableHead>
-                  <TableHead className="text-gray-400">Status</TableHead>
-                  <TableHead className="text-right text-gray-400">Total</TableHead>
-                  <TableHead className="text-right text-gray-400">Actions</TableHead>
+              <TableHeader className="bg-muted/40 border-b border-border">
+                <TableRow className="border-border">
+                  <TableHead className="w-[140px] text-xs font-semibold uppercase tracking-wider text-muted-foreground">Order Ref</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</TableHead>
+                  <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {orders.map((order) => (
-                  <TableRow key={order.id} className="border-neutral-800 hover:bg-neutral-800/50">
-                    <TableCell className="font-medium text-xs text-white">{order.order_number}</TableCell>
-                    <TableCell className="text-sm text-gray-300">
+                  <TableRow key={order.id} className="border-border hover:bg-muted/30">
+                    <TableCell className="font-mono text-xs font-semibold text-foreground">{order.order_number}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
                       {format(new Date(order.created_at), "dd MMM yyyy")}
                     </TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full capitalize ${
-                        order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                        order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
-                        'bg-orange-100 text-orange-800'
+                      <span className={`px-2.5 py-0.5 text-[11px] font-semibold rounded-full capitalize ${
+                        order.status === 'delivered' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                        order.status === 'shipped' ? 'bg-[#C5A880]/20 text-[#9A7B4F] dark:text-[#C5A880]' :
+                        'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
                       }`}>
                         {order.status}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right font-medium text-white">
-                      ₹{order.total_amount.toFixed(2)}
+                    <TableCell className="text-right font-semibold text-xs text-foreground">
+                      ₹{order.total_amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" className="rounded-none border-neutral-700 text-gray-300 hover:bg-neutral-800 hover:text-white uppercase tracking-widest text-[10px] font-bold" asChild>
+                      <Button variant="outline" size="sm" className="rounded-md border-border text-foreground hover:bg-muted text-xs font-semibold uppercase tracking-wider h-8" asChild>
                         <Link to={`/order-tracking?id=${order.id}`}>
-                          Track Order
+                          Track
                         </Link>
                       </Button>
                     </TableCell>
@@ -141,10 +144,11 @@ const OrdersTab = () => {
             </Table>
           </div>
         ) : (
-          <div className="text-center py-12 border border-dashed rounded-none border-neutral-800">
-            <PackageCheck className="w-12 h-12 mx-auto text-neutral-600 mb-4" />
-            <p className="text-lg text-gray-400 mb-4">You haven't placed any orders yet.</p>
-            <Button asChild className="rounded-none bg-perfume-gold text-black hover:bg-yellow-600 uppercase tracking-widest text-[10px] font-bold px-6">
+          <div className="text-center py-16 border border-dashed rounded-lg border-border bg-muted/10">
+            <PackageCheck className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm font-medium text-foreground mb-1">You haven't placed any orders yet.</p>
+            <p className="text-xs text-muted-foreground mb-6">Discover our curated extraits and pure attars.</p>
+            <Button asChild className="btn-gold px-6">
               <Link to="/products">Discover Fragrances</Link>
             </Button>
           </div>
@@ -177,39 +181,39 @@ const ProfileTab = () => {
     });
   };
 
-  if (isLoading) return <p>Loading profile...</p>;
+  if (isLoading) return <p className="text-xs text-muted-foreground py-4">Loading client profile...</p>;
 
   return (
-    <Card className="rounded-none border-neutral-800 bg-neutral-900 shadow-none max-w-2xl">
+    <Card className="rounded-xl border border-border bg-card shadow-sm max-w-2xl">
       <CardHeader>
-        <CardTitle className="text-2xl font-serif text-white">Personal Information</CardTitle>
-        <CardDescription className="text-gray-400">Update your contact details and name.</CardDescription>
+        <CardTitle className="text-2xl font-serif text-foreground">Personal Information</CardTitle>
+        <CardDescription className="text-muted-foreground text-xs">Update your client profile and name.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-5">
         <div>
-          <label className="text-sm font-medium mb-1.5 block text-gray-300">Email Address</label>
-          <Input value={user?.email || ""} disabled className="bg-neutral-800 text-gray-400 rounded-none border-neutral-700" />
-          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-            <Shield className="w-3 h-3" /> Cannot be changed
+          <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Email Address</label>
+          <Input value={user?.email || ""} disabled className="bg-muted text-muted-foreground rounded-md border-border text-sm" />
+          <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+            <Shield className="w-3 h-3 text-[#C5A880]" /> Verified account identity
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium mb-1.5 block text-gray-300">First Name</label>
+            <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">First Name</label>
             <Input 
               value={firstName} 
               onChange={e => setFirstName(e.target.value)} 
               placeholder="First Name" 
-              className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600"
+              className="rounded-md bg-background border-border text-foreground text-sm"
             />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1.5 block text-gray-300">Last Name</label>
+            <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Last Name</label>
             <Input 
               value={lastName} 
               onChange={e => setLastName(e.target.value)} 
               placeholder="Last Name"
-              className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" 
+              className="rounded-md bg-background border-border text-foreground text-sm" 
             />
           </div>
         </div>
@@ -218,7 +222,7 @@ const ProfileTab = () => {
         <Button 
           onClick={handleSave} 
           disabled={updateProfile.isPending}
-          className="rounded-none bg-perfume-gold text-black hover:bg-yellow-600 uppercase tracking-widest text-[10px] font-bold px-6 min-w-[120px]"
+          className="btn-gold h-10 px-6 text-xs uppercase tracking-wider font-semibold"
         >
           {updateProfile.isPending ? "Saving..." : "Save Changes"}
         </Button>
@@ -300,31 +304,31 @@ const AddressesTab = () => {
     }
   };
 
-  if (isLoading) return <p>Loading addresses...</p>;
+  if (isLoading) return <p className="text-xs text-muted-foreground py-4">Loading address book...</p>;
 
   return (
     <div className="space-y-6">
       {!isAdding && (
-        <div className="flex justify-between items-center bg-[#111111] p-6 border border-neutral-800">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-card p-6 border border-border rounded-xl shadow-sm gap-4">
           <div>
-            <h3 className="font-serif font-bold text-lg text-white">Saved Addresses</h3>
-            <p className="text-sm text-gray-400">Manage your delivery locations.</p>
+            <h3 className="font-serif font-semibold text-lg text-foreground">Delivery Locations</h3>
+            <p className="text-xs text-muted-foreground">Manage your saved home, office, and gifting addresses.</p>
           </div>
-          <Button onClick={() => setIsAdding(true)} className="rounded-none bg-perfume-gold text-black hover:bg-yellow-600 uppercase tracking-widest text-[10px] font-bold px-4">
-            <MapPinPlus className="w-4 h-4 mr-2" /> Add New Address
+          <Button onClick={() => setIsAdding(true)} className="btn-gold h-10 px-4 text-xs font-semibold uppercase tracking-wider">
+            <MapPinPlus className="w-3.5 h-3.5 mr-2" /> Add New Address
           </Button>
         </div>
       )}
 
       {isAdding && (
-        <Card className="rounded-none border-neutral-800 bg-neutral-900 shadow-none max-w-2xl">
+        <Card className="rounded-xl border border-border bg-card shadow-sm max-w-2xl">
           <CardHeader>
-            <CardTitle className="text-xl font-serif text-white">Add New Address</CardTitle>
+            <CardTitle className="text-xl font-serif text-foreground">Add New Address</CardTitle>
           </CardHeader>
           <form onSubmit={handleAdd}>
             <CardContent className="space-y-4">
-              <div className="space-y-3 mb-6">
-                <label className="text-sm font-medium block text-gray-300">Save Address As</label>
+              <div className="space-y-2 mb-4">
+                <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground block">Address Type</label>
                 <RadioGroup
                   value={newAddress.address_type || "home"}
                   onValueChange={(val) => setNewAddress({...newAddress, address_type: val})}
@@ -332,49 +336,49 @@ const AddressesTab = () => {
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="home" id="new-home" />
-                    <label htmlFor="new-home" className="text-sm text-gray-300 cursor-pointer">Home</label>
+                    <label htmlFor="new-home" className="text-xs text-foreground cursor-pointer">Home</label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="office" id="new-office" />
-                    <label htmlFor="new-office" className="text-sm text-gray-300 cursor-pointer">Office</label>
+                    <label htmlFor="new-office" className="text-xs text-foreground cursor-pointer">Office</label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="other" id="new-other" />
-                    <label htmlFor="new-other" className="text-sm text-gray-300 cursor-pointer">Other</label>
+                    <label htmlFor="new-other" className="text-xs text-foreground cursor-pointer">Other</label>
                   </div>
                 </RadioGroup>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block text-gray-300">Full Name *</label>
-                <Input required value={newAddress.full_name} onChange={e => setNewAddress({...newAddress, full_name: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="Rahul Sharma" />
+                <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">Full Name *</label>
+                <Input required value={newAddress.full_name} onChange={e => setNewAddress({...newAddress, full_name: e.target.value})} className="rounded-md bg-background border-border text-foreground text-sm" placeholder="Rahul Sharma" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block text-gray-300">Phone *</label>
-                  <Input required value={newAddress.phone || ""} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="+91 9876543210" />
+                  <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">Phone *</label>
+                  <Input required value={newAddress.phone || ""} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} className="rounded-md bg-background border-border text-foreground text-sm" placeholder="+91 9876543210" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block text-gray-300">Email</label>
-                  <Input type="email" value={newAddress.email || ""} onChange={e => setNewAddress({...newAddress, email: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="john@example.com" />
+                  <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">Email</label>
+                  <Input type="email" value={newAddress.email || ""} onChange={e => setNewAddress({...newAddress, email: e.target.value})} className="rounded-md bg-background border-border text-foreground text-sm" placeholder="john@example.com" />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block text-gray-300">Full Address *</label>
-                <Input required value={newAddress.address} onChange={e => setNewAddress({...newAddress, address: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="123 MG Road, Bandra" />
+                <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">Full Address *</label>
+                <Input required value={newAddress.address} onChange={e => setNewAddress({...newAddress, address: e.target.value})} className="rounded-md bg-background border-border text-foreground text-sm" placeholder="123 MG Road, Bandra" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block text-gray-300">City *</label>
-                  <Input required value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="Mumbai" />
+                  <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">City *</label>
+                  <Input required value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="rounded-md bg-background border-border text-foreground text-sm" placeholder="Mumbai" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block text-gray-300">State *</label>
-                  <Input required value={newAddress.state} onChange={e => setNewAddress({...newAddress, state: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="Maharashtra" />
+                  <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">State *</label>
+                  <Input required value={newAddress.state} onChange={e => setNewAddress({...newAddress, state: e.target.value})} className="rounded-md bg-background border-border text-foreground text-sm" placeholder="Maharashtra" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block text-gray-300">PIN Code *</label>
+                  <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">PIN Code *</label>
                   <Input 
                     required 
                     value={newAddress.zip} 
@@ -400,19 +404,19 @@ const AddressesTab = () => {
                         }
                       }
                     }} 
-                    className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" 
+                    className="rounded-md bg-background border-border text-foreground text-sm" 
                     placeholder="400001" 
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1.5 block text-gray-300">Country *</label>
-                  <Input required value={newAddress.country} onChange={e => setNewAddress({...newAddress, country: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="India" />
+                  <label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">Country *</label>
+                  <Input required value={newAddress.country} onChange={e => setNewAddress({...newAddress, country: e.target.value})} className="rounded-md bg-background border-border text-foreground text-sm" placeholder="India" />
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="gap-4 border-t border-neutral-800 pt-6 mt-4">
-              <Button type="button" variant="outline" onClick={() => setIsAdding(false)} className="rounded-none border-neutral-700 text-white hover:bg-neutral-800 hover:text-white uppercase tracking-widest text-[10px] font-bold">Cancel</Button>
-              <Button type="submit" className="rounded-none bg-perfume-gold text-black hover:bg-yellow-600 uppercase tracking-widest text-[10px] font-bold px-6">
+            <CardFooter className="gap-3 border-t border-border pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsAdding(false)} className="rounded-md border-border text-foreground hover:bg-muted text-xs uppercase tracking-wider font-semibold">Cancel</Button>
+              <Button type="submit" className="btn-gold text-xs uppercase tracking-wider font-semibold px-6">
                 Save Address
               </Button>
             </CardFooter>
@@ -423,167 +427,63 @@ const AddressesTab = () => {
       {!isAdding && addresses.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {addresses.map((addr) => (
-            editingId === addr.id && editAddressData ? (
-              <Card key={`edit-${addr.id}`} className="rounded-none border-neutral-800 bg-neutral-900 shadow-none col-span-1 md:col-span-2 max-w-2xl">
-                <CardHeader>
-                  <CardTitle className="text-xl font-serif text-white">Edit Address</CardTitle>
-                </CardHeader>
-                <form onSubmit={handleEdit}>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-3 mb-6">
-                      <label className="text-sm font-medium block text-gray-300">Save Address As</label>
-                      <RadioGroup
-                        value={editAddressData.address_type || "home"}
-                        onValueChange={(val) => setEditAddressData({...editAddressData, address_type: val})}
-                        className="flex space-x-4"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="home" id={`edit-home-${addr.id}`} />
-                          <label htmlFor={`edit-home-${addr.id}`} className="text-sm text-gray-300 cursor-pointer">Home</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="office" id={`edit-office-${addr.id}`} />
-                          <label htmlFor={`edit-office-${addr.id}`} className="text-sm text-gray-300 cursor-pointer">Office</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="other" id={`edit-other-${addr.id}`} />
-                          <label htmlFor={`edit-other-${addr.id}`} className="text-sm text-gray-300 cursor-pointer">Other</label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-1.5 block text-gray-300">Full Name *</label>
-                      <Input required value={editAddressData.full_name} onChange={e => setEditAddressData({...editAddressData, full_name: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="Rahul Sharma" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium mb-1.5 block text-gray-300">Phone *</label>
-                        <Input required value={editAddressData.phone || ""} onChange={e => setEditAddressData({...editAddressData, phone: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="+91 9876543210" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1.5 block text-gray-300">Email</label>
-                        <Input type="email" value={editAddressData.email || ""} onChange={e => setEditAddressData({...editAddressData, email: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="john@example.com" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-1.5 block text-gray-300">Full Address *</label>
-                      <Input required value={editAddressData.address} onChange={e => setEditAddressData({...editAddressData, address: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="123 MG Road, Bandra" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium mb-1.5 block text-gray-300">City *</label>
-                        <Input required value={editAddressData.city} onChange={e => setEditAddressData({...editAddressData, city: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="Mumbai" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1.5 block text-gray-300">State *</label>
-                        <Input required value={editAddressData.state} onChange={e => setEditAddressData({...editAddressData, state: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="Maharashtra" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium mb-1.5 block text-gray-300">PIN Code *</label>
-                        <Input 
-                          required 
-                          value={editAddressData.zip} 
-                          onChange={async (e) => {
-                            setEditAddressData({...editAddressData, zip: e.target.value});
-                            const val = e.target.value.replace(/\D/g, "");
-                            if (val.length === 6) {
-                              try {
-                                const res = await fetch(`https://api.postalpincode.in/pincode/${val}`);
-                                const data = await res.json();
-                                if (data && data[0] && data[0].Status === "Success" && data[0].PostOffice && data[0].PostOffice.length > 0) {
-                                  const postOffice = data[0].PostOffice[0];
-                                  setEditAddressData(prev => prev ? ({
-                                    ...prev,
-                                    zip: e.target.value,
-                                    city: postOffice.District,
-                                    state: postOffice.State,
-                                    country: "India"
-                                  }) : null);
-                                }
-                              } catch (err) {
-                                console.error("Failed to fetch pincode details:", err);
-                              }
-                            }
-                          }} 
-                          className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" 
-                          placeholder="400001" 
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1.5 block text-gray-300">Country *</label>
-                        <Input required value={editAddressData.country} onChange={e => setEditAddressData({...editAddressData, country: e.target.value})} className="rounded-none bg-transparent border-neutral-700 text-white focus-visible:ring-perfume-gold placeholder:text-gray-600" placeholder="India" />
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="gap-4 border-t border-neutral-800 pt-6 mt-4">
-                    <Button type="button" variant="outline" onClick={() => { setEditingId(null); setEditAddressData(null); }} className="rounded-none border-neutral-700 text-white hover:bg-neutral-800 hover:text-white uppercase tracking-widest text-[10px] font-bold">Cancel</Button>
-                    <Button type="submit" className="rounded-none bg-perfume-gold text-black hover:bg-yellow-600 uppercase tracking-widest text-[10px] font-bold px-6">
-                      Save Address
-                    </Button>
-                  </CardFooter>
-                </form>
-              </Card>
-            ) : (
-            <Card key={addr.id} className="rounded-none border-neutral-800 shadow-none hover:border-perfume-gold transition-colors bg-neutral-900">
+            <Card key={addr.id} className="rounded-xl border border-border shadow-sm hover:border-[#C5A880]/60 transition-colors bg-card">
               <CardContent className="p-6 relative">
                 {addr.is_default && (
-                  <span className="absolute top-4 right-4 bg-perfume-gold text-black text-[10px] font-bold uppercase tracking-wider px-2 py-1">
+                  <span className="absolute top-4 right-4 bg-[#C5A880] text-[#1C1917] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
                     Default
                   </span>
                 )}
                 <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 mt-0.5 text-perfume-gold" />
+                  <MapPin className="w-4 h-4 mt-0.5 text-[#C5A880]" />
                   <div>
-                    <p className="font-medium text-white mb-1">
+                    <p className="font-semibold text-sm text-foreground mb-1">
                       {addr.full_name} 
                       {addr.address_type && (
-                        <span className="ml-2 text-[10px] font-bold uppercase tracking-wider bg-neutral-800 px-2 py-0.5 rounded-full text-perfume-gold">
+                        <span className="ml-2 text-[9px] font-bold uppercase tracking-wider bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
                           {addr.address_type}
                         </span>
                       )}
                     </p>
-                    <p className="font-medium text-white mb-1">{addr.address}</p>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-xs text-foreground/90 leading-relaxed">{addr.address}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {addr.city}, {addr.state} {addr.zip}
                     </p>
-                    <p className="text-sm text-gray-400">{addr.country}</p>
+                    <p className="text-xs text-muted-foreground">{addr.country}</p>
                   </div>
                 </div>
-                <div className="mt-6 pt-4 border-t border-neutral-800 flex justify-end gap-2">
+                <div className="mt-5 pt-3 border-t border-border flex justify-end gap-2">
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="text-gray-400 hover:text-white hover:bg-neutral-800 rounded-none h-8 uppercase tracking-widest text-[10px] font-bold"
+                    className="text-muted-foreground hover:text-foreground text-xs font-medium h-8"
                     onClick={() => startEditing(addr)}
                   >
-                    <Pencil className="w-4 h-4 mr-2" /> Edit
+                    <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
                   </Button>
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-none h-8 uppercase tracking-widest text-[10px] font-bold"
+                    className="text-destructive hover:bg-destructive/10 text-xs font-medium h-8"
                     onClick={() => {
                       if(window.confirm("Delete this address?")) deleteAddress(addr.id);
                     }}
                   >
-                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                    <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
                   </Button>
                 </div>
               </CardContent>
             </Card>
-            )
           ))}
         </div>
       )}
 
       {!isAdding && addresses.length === 0 && (
-        <div className="text-center py-16 border border-dashed rounded-none border-neutral-800 bg-neutral-900">
-          <MapPin className="w-12 h-12 mx-auto text-neutral-600 mb-4" />
-          <p className="text-lg text-gray-400 mb-2">No addresses saved yet.</p>
-          <p className="text-sm text-gray-500 mb-6">Add a shipping address to speed up your checkout.</p>
-          <Button onClick={() => setIsAdding(true)} className="rounded-none bg-perfume-gold text-black hover:bg-yellow-600 uppercase tracking-widest text-[10px] font-bold px-6">
+        <div className="text-center py-16 border border-dashed rounded-xl border-border bg-card">
+          <MapPin className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+          <p className="text-sm font-medium text-foreground mb-1">No addresses saved yet.</p>
+          <p className="text-xs text-muted-foreground mb-6">Add a shipping destination to enjoy expedited checkout.</p>
+          <Button onClick={() => setIsAdding(true)} className="btn-gold px-6 text-xs uppercase tracking-wider font-semibold">
             Add Your First Address
           </Button>
         </div>
@@ -596,25 +496,26 @@ const AddressesTab = () => {
 const WishlistTab = () => {
   const { data: wishlist = [], isLoading } = useWishlist();
 
-  if (isLoading) return <p>Loading your wishlist...</p>;
+  if (isLoading) return <p className="text-xs text-muted-foreground py-4">Loading your private wishlist...</p>;
 
   return (
-    <Card className="rounded-none border-neutral-800 shadow-none bg-neutral-900">
+    <Card className="rounded-xl border border-border shadow-sm bg-card">
       <CardHeader>
-        <CardTitle className="text-2xl font-serif text-white">My Wishlist</CardTitle>
-        <CardDescription className="text-gray-400">Products you have saved for later.</CardDescription>
+        <CardTitle className="text-2xl font-serif text-foreground">Curated Wishlist</CardTitle>
+        <CardDescription className="text-muted-foreground text-xs">Creations reserved for your future fragrance collection.</CardDescription>
       </CardHeader>
       <CardContent>
         {wishlist.length === 0 ? (
-          <div className="text-center py-12 border border-dashed rounded-none border-neutral-800 bg-neutral-900">
-            <Heart className="w-12 h-12 mx-auto text-neutral-600 mb-4" />
-            <p className="text-lg text-gray-400 mb-4">Your wishlist is empty.</p>
-            <Button asChild className="rounded-none bg-perfume-gold text-black hover:bg-yellow-600 uppercase tracking-widest text-[10px] font-bold px-6">
-              <Link to="/products">Discover Fragrances</Link>
+          <div className="text-center py-16 border border-dashed rounded-lg border-border bg-muted/10">
+            <Heart className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm font-medium text-foreground mb-1">Your wishlist is currently empty.</p>
+            <p className="text-xs text-muted-foreground mb-6">Click the heart icon on any creation to save it here.</p>
+            <Button asChild className="btn-gold px-6">
+              <Link to="/products">Explore Fragrance Gallery</Link>
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {wishlist.map((item) => (
               item.product && <ProductCard key={item.id} product={item.product} />
             ))}
