@@ -1,4 +1,4 @@
-import { corsHeaders } from "./cors.ts";
+import { getCorsHeaders } from "./cors.ts";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -16,7 +16,12 @@ export interface ApiResponse<T = any> {
   };
 }
 
-export const ok = <T>(data: T, meta?: ApiResponse["meta"], status = 200): Response => {
+export const ok = <T>(
+  data: T,
+  meta?: ApiResponse["meta"],
+  status = 200,
+  req?: Request
+): Response => {
   const body: ApiResponse<T> = {
     success: true,
     data,
@@ -25,9 +30,10 @@ export const ok = <T>(data: T, meta?: ApiResponse["meta"], status = 200): Respon
       timestamp: new Date().toISOString(),
     },
   };
+  const headers = getCorsHeaders(req?.headers.get("origin"));
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
   });
 };
 
@@ -35,7 +41,8 @@ export const err = (
   message: string,
   code = "BAD_REQUEST",
   status = 400,
-  details?: any
+  details?: any,
+  req?: Request
 ): Response => {
   const body: ApiResponse = {
     success: false,
@@ -48,8 +55,9 @@ export const err = (
       timestamp: new Date().toISOString(),
     },
   };
+  const headers = getCorsHeaders(req?.headers.get("origin"));
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
   });
 };

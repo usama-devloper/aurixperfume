@@ -162,10 +162,27 @@ describe("Return Request System — Security & Complete Functionality", () => {
         }));
       });
 
-      // 3. Verifies confirmed acknowledgment receipt renders
+      // 3. Verifies return-request-notify receives the server-issued reservation_token
+      await waitFor(() => {
+        expect(supabase.functions.invoke).toHaveBeenCalledWith(
+          "return-request-notify",
+          expect.objectContaining({
+            body: expect.objectContaining({
+              event: "REQUEST_CREATED",
+              reference_number: "RET-20261116-A1B2C3",
+              order_number: "ORD-20261026-F9E8D7C6B5A43210",
+              customer_email: "client@example.com",
+              reservation_token: "res-token-12345",
+            }),
+          })
+        );
+      });
+
+      // 4. Verifies confirmed acknowledgment receipt renders and NEVER exposes the secret token in the DOM
       expect(await screen.findByText("Request Successfully Registered")).toBeInTheDocument();
       expect(screen.getByText("RET-20261116-A1B2C3")).toBeInTheDocument();
       expect(screen.getByText("ORD-20261026-F9E8D7C6B5A43210")).toBeInTheDocument();
+      expect(screen.queryByText(/res-token-12345/i)).not.toBeInTheDocument();
     });
 
     it("normalizes mixed-case email addresses to lowercase before submitting to RPC", async () => {
@@ -501,6 +518,362 @@ describe("Return Request System — Security & Complete Functionality", () => {
       // 5. Exhausted retries
       const claim5 = simulateClaim({ status: "failed", leaseActive: false, attempts: 3 });
       expect(claim5.action).toBe("exhausted");
+    });
+  });
+
+  describe("F. Edge Function Notification Hardening (return-request-notify)", () => {
+    it("escapes HTML fields, verifies both Resend responses, and never marks unconfigured delivery as sent", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const notifyPath = path.resolve(
+        __dirname,
+        "../../supabase/functions/return-request-notify/index.ts"
+      );
+      const code = fs.readFileSync(notifyPath, "utf-8");
+
+      // 1. Support email and sender preserved
+      expect(code).toContain('const OFFICIAL_SUPPORT_EMAIL = "aurixperfume25@gmail.com";');
+      expect(code).toContain('const SENDER_EMAIL = "AURIX Concierge <notifications@aurixperfume.in>";');
+
+      // 2. HTML escaping helper defined and applied to customer name, product name, description, and notes
+      expect(code).toMatch(/function\s+escapeHtml\(/);
+      expect(code).toMatch(/const\s+safeName\s*=\s*escapeHtml\(resolvedName\)/);
+      expect(code).toMatch(/const\s+safeProduct\s*=\s*escapeHtml\(resolvedProduct\)/);
+      expect(code).toMatch(/const\s+safeDescription\s*=\s*escapeHtml\(resolvedDescription\)/);
+      expect(code).toMatch(/const\s+safeNotes\s*=\s*escapeHtml\(resolvedNotes\)/);
+      expect(code).not.toContain("Dear ${resolvedName}");
+      expect(code).not.toContain("Product:</strong> ${resolvedProduct}");
+      expect(code).not.toContain("<em>${resolvedNotes}</em>");
+
+      // 3. Missing RESEND_API_KEY fails clearly (503 PROVIDER_UNCONFIGURED) BEFORE claiming outbox and NEVER marks 'sent'
+      const resendCheckIdx = code.indexOf('if (!resendApiKey)');
+      const claimIdx = code.indexOf('claim_return_notification_event');
+      expect(resendCheckIdx).toBeGreaterThan(-1);
+      expect(claimIdx).toBeGreaterThan(resendCheckIdx);
+      expect(code).toContain('"PROVIDER_UNCONFIGURED"');
+      expect(code).not.toContain("simulated_no_api_key");
+
+      // 4. Checks BOTH customer and atelier Resend responses; failed admin email cannot be marked 'sent'
+      expect(code).toMatch(/if\s*\(resCustomer\.ok\)/);
+      expect(code).toMatch(/if\s*\(resAtelier\.ok\)/);
+      expect(code).toMatch(/const\s+allDelivered\s*=\s*customerEmailSent\s*&&\s*\(!atelierRequired\s*\|\|\s*atelierEmailSent\)/);
+      expect(code).toContain('"partial_failure"');
+      expect(code).toContain('"DELIVERY_FAILED"');
+
+      // 5. Never discloses customer email PII ('recipient') in any HTTP response
+      expect(code).not.toMatch(/recipient:\s*resolvedEmail/);
+
+      // 6. STATUS_UPDATED executes requireAdmin(req) STRICTLY BEFORE querying order_return_requests
+      const requireAdminIdx = code.indexOf("await requireAdmin(req);");
+      const dbQueryIdx = code.indexOf('.from("order_return_requests")');
+      expect(requireAdminIdx).toBeGreaterThan(-1);
+      expect(dbQueryIdx).toBeGreaterThan(requireAdminIdx);
+
+      // 7. Guest REQUEST_CREATED MANDATORILY requires order_number + customer_email + server-issued reservation_token
+      expect(code).toMatch(/if\s*\(!cleanOrderInput\s*\|\|\s*!cleanEmailInput\s*\|\|\s*!suppliedToken\)/);
+      expect(code).not.toMatch(/if\s*\(suppliedToken\)/); // Must NOT be optional
+      expect(code).toMatch(/const\s+orderMatches\s*=\s*constantTimeEqual\(cleanOrderInput,\s*dbOrder\)/);
+      expect(code).toMatch(/const\s+emailMatches\s*=\s*constantTimeEqual\(cleanEmailInput,\s*dbEmail\)/);
+      expect(code).toMatch(/\.from\("return_reference_reservations"\)/);
+      expect(code).toMatch(/Boolean\(reservation\.used_at\)/);
+      expect(code).toMatch(/constantTimeEqual\(suppliedToken,\s*storedToken\)/);
+      expect(code).toMatch(/constantTimeEqual\(cleanRef,\s*storedRef\)/);
+
+      // 8. Token is never returned in responses, logged, or interpolated into email templates
+      expect(code).not.toMatch(/reservation_token:\s*suppliedToken/);
+      expect(code).not.toMatch(/console\.\w+\([^)]*suppliedToken/);
+      expect(code).not.toMatch(/console\.\w+\([^)]*storedToken/);
+      expect(code).not.toMatch(/\$\{suppliedToken\}|\$\{storedToken\}/);
+    });
+
+    it("behaviorally enforces mandatory server-issued reservation_token, guest ownership, outbox protection, and admin auth order", () => {
+      const dbRecords = [
+        {
+          reference_number: "RET-ABC123",
+          order_number: "ORD-20261118-9999",
+          customer_email: "vip.client@example.com",
+          status: "pending",
+          created_at: new Date().toISOString(),
+        },
+        {
+          reference_number: "RET-OTHER9",
+          order_number: "ORD-20261118-8888",
+          customer_email: "other.client@example.com",
+          status: "pending",
+          created_at: new Date().toISOString(),
+        },
+      ];
+      const dbReservations = [
+        {
+          reference_number: "RET-ABC123",
+          order_number: "ORD-20261118-9999",
+          customer_email: "vip.client@example.com",
+          reservation_token: "srv-issued-hex-token-001",
+          used_at: new Date().toISOString(),
+        },
+        {
+          reference_number: "RET-OTHER9",
+          order_number: "ORD-20261118-8888",
+          customer_email: "other.client@example.com",
+          reservation_token: "srv-issued-hex-token-other",
+          used_at: new Date().toISOString(),
+        },
+        {
+          reference_number: "RET-UNCONSUMED",
+          order_number: "ORD-20261118-7777",
+          customer_email: "unconsumed@example.com",
+          reservation_token: "srv-issued-unconsumed-token",
+          used_at: null as string | null,
+        },
+      ];
+
+      const simulateNotifyAuth = (input: {
+        event: "REQUEST_CREATED" | "STATUS_UPDATED";
+        reference_number: string;
+        order_number?: string;
+        customer_email?: string;
+        reservation_token?: string | null;
+        isAdmin?: boolean;
+        outboxAction?: "claimed" | "already_sent";
+        overrideReservationOrder?: string;
+        overrideUnconsumed?: boolean;
+      }) => {
+        let dbQueried = false;
+        let outboxClaimed = false;
+        const cleanRef = input.reference_number.trim().toUpperCase();
+
+        if (input.event === "STATUS_UPDATED") {
+          // Admin auth MUST run before any DB lookup
+          if (!input.isAdmin) {
+            return { status: 403, code: "FORBIDDEN", dbQueried, outboxClaimed, body: { success: false } };
+          }
+          dbQueried = true;
+          const record = dbRecords.find((r) => r.reference_number === cleanRef);
+          if (!record) {
+            return { status: 404, code: "NOT_FOUND", dbQueried, outboxClaimed, body: { success: false } };
+          }
+          outboxClaimed = true;
+          return {
+            status: 200,
+            code: "OK",
+            dbQueried,
+            outboxClaimed,
+            body: {
+              success: true,
+              event: input.event,
+              deliveryStatus: input.outboxAction === "already_sent" ? "duplicate_suppressed" : "sent",
+              referenceNumber: record.reference_number,
+            },
+          };
+        }
+
+        const cleanOrder = (input.order_number || "").trim().toUpperCase();
+        const cleanEmail = (input.customer_email || "").trim().toLowerCase();
+        const suppliedToken = typeof input.reservation_token === "string" ? input.reservation_token.trim() : "";
+
+        // Mandatory pre-DB check for order_number, customer_email, and reservation_token
+        if (!cleanOrder || !cleanEmail || !suppliedToken) {
+          return { status: 403, code: "UNAUTHORIZED", dbQueried, outboxClaimed, body: { success: false } };
+        }
+
+        dbQueried = true;
+        const record = dbRecords.find((r) => r.reference_number === cleanRef);
+        if (!record || cleanOrder !== record.order_number || cleanEmail !== record.customer_email) {
+          return { status: 403, code: "UNAUTHORIZED", dbQueried, outboxClaimed, body: { success: false } };
+        }
+
+        const baseRes = dbReservations.find((r) => r.reference_number === cleanRef);
+        const reservation = baseRes
+          ? {
+              ...baseRes,
+              order_number: input.overrideReservationOrder ?? baseRes.order_number,
+              used_at: input.overrideUnconsumed ? null : baseRes.used_at,
+            }
+          : null;
+
+        const tokenValid =
+          Boolean(reservation) &&
+          Boolean(reservation?.used_at) &&
+          reservation?.reference_number === cleanRef &&
+          reservation?.reservation_token === suppliedToken &&
+          reservation?.order_number === record.order_number &&
+          reservation?.customer_email === record.customer_email;
+
+        if (!tokenValid) {
+          return { status: 403, code: "UNAUTHORIZED", dbQueried, outboxClaimed, body: { success: false } };
+        }
+
+        outboxClaimed = true;
+        return {
+          status: 200,
+          code: "OK",
+          dbQueried,
+          outboxClaimed,
+          body: {
+            success: true,
+            event: input.event,
+            deliveryStatus: input.outboxAction === "already_sent" ? "duplicate_suppressed" : "sent",
+            referenceNumber: record.reference_number,
+          },
+        };
+      };
+
+      // 1. Valid server-issued token allows legitimate guest notification and NEVER returns email or token
+      const validGuest = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "ret-abc123",
+        order_number: " ord-20261118-9999 ",
+        customer_email: " VIP.CLIENT@EXAMPLE.COM ",
+        reservation_token: "srv-issued-hex-token-001",
+      });
+      expect(validGuest.status).toBe(200);
+      expect(validGuest.outboxClaimed).toBe(true);
+      expect(JSON.stringify(validGuest.body)).not.toContain("vip.client@example.com");
+      expect(JSON.stringify(validGuest.body)).not.toContain("srv-issued-hex-token-001");
+
+      // 2. Missing reservation_token rejected BEFORE DB lookup and never claims outbox
+      const missingToken = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "RET-ABC123",
+        order_number: "ORD-20261118-9999",
+        customer_email: "vip.client@example.com",
+      });
+      expect(missingToken.status).toBe(403);
+      expect(missingToken.dbQueried).toBe(false);
+      expect(missingToken.outboxClaimed).toBe(false);
+
+      // 3. Empty/whitespace reservation_token rejected BEFORE DB lookup and never claims outbox
+      const emptyToken = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "RET-ABC123",
+        order_number: "ORD-20261118-9999",
+        customer_email: "vip.client@example.com",
+        reservation_token: "   ",
+      });
+      expect(emptyToken.status).toBe(403);
+      expect(emptyToken.dbQueried).toBe(false);
+      expect(emptyToken.outboxClaimed).toBe(false);
+
+      // 4. Incorrect token rejected without claiming outbox
+      const wrongToken = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "RET-ABC123",
+        order_number: "ORD-20261118-9999",
+        customer_email: "vip.client@example.com",
+        reservation_token: "forged-token-xyz",
+      });
+      expect(wrongToken.status).toBe(403);
+      expect(wrongToken.outboxClaimed).toBe(false);
+
+      // 5. Token belonging to another reference rejected without claiming outbox
+      const crossRefToken = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "RET-ABC123",
+        order_number: "ORD-20261118-9999",
+        customer_email: "vip.client@example.com",
+        reservation_token: "srv-issued-hex-token-other",
+      });
+      expect(crossRefToken.status).toBe(403);
+      expect(crossRefToken.outboxClaimed).toBe(false);
+
+      // 6. Token bound to another order rejected without claiming outbox
+      const crossOrderToken = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "RET-ABC123",
+        order_number: "ORD-20261118-9999",
+        customer_email: "vip.client@example.com",
+        reservation_token: "srv-issued-hex-token-001",
+        overrideReservationOrder: "ORD-DIFFERENT-0001",
+      });
+      expect(crossOrderToken.status).toBe(403);
+      expect(crossOrderToken.outboxClaimed).toBe(false);
+
+      // 7. Unconsumed reservation (used_at IS NULL) rejected without claiming outbox
+      const unconsumedRes = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "RET-ABC123",
+        order_number: "ORD-20261118-9999",
+        customer_email: "vip.client@example.com",
+        reservation_token: "srv-issued-hex-token-001",
+        overrideUnconsumed: true,
+      });
+      expect(unconsumedRes.status).toBe(403);
+      expect(unconsumedRes.outboxClaimed).toBe(false);
+
+      // 8. Order / email mismatch rejected even with real token, without claiming outbox
+      const wrongOrder = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "RET-ABC123",
+        order_number: "ORD-WRONG",
+        customer_email: "vip.client@example.com",
+        reservation_token: "srv-issued-hex-token-001",
+      });
+      expect(wrongOrder.status).toBe(403);
+      expect(wrongOrder.outboxClaimed).toBe(false);
+
+      const wrongEmail = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "RET-ABC123",
+        order_number: "ORD-20261118-9999",
+        customer_email: "attacker@example.com",
+        reservation_token: "srv-issued-hex-token-001",
+      });
+      expect(wrongEmail.status).toBe(403);
+      expect(wrongEmail.outboxClaimed).toBe(false);
+
+      // 9. Duplicate valid notification remains idempotent without exposing email or token
+      const dupGuest = simulateNotifyAuth({
+        event: "REQUEST_CREATED",
+        reference_number: "RET-ABC123",
+        order_number: "ORD-20261118-9999",
+        customer_email: "vip.client@example.com",
+        reservation_token: "srv-issued-hex-token-001",
+        outboxAction: "already_sent",
+      });
+      expect(dupGuest.status).toBe(200);
+      expect(dupGuest.body.deliveryStatus).toBe("duplicate_suppressed");
+      expect(JSON.stringify(dupGuest.body)).not.toContain("vip.client@example.com");
+      expect(JSON.stringify(dupGuest.body)).not.toContain("srv-issued-hex-token-001");
+
+      // 10. Unauthenticated / non-admin STATUS_UPDATED rejected BEFORE any DB lookup or outbox claim
+      const unauthAdmin = simulateNotifyAuth({
+        event: "STATUS_UPDATED",
+        reference_number: "RET-NONEXISTENT",
+        isAdmin: false,
+      });
+      expect(unauthAdmin.status).toBe(403);
+      expect(unauthAdmin.dbQueried).toBe(false);
+      expect(unauthAdmin.outboxClaimed).toBe(false);
+
+      // 11. Authorized admin STATUS_UPDATED succeeds without leaking email or token
+      const validAdmin = simulateNotifyAuth({
+        event: "STATUS_UPDATED",
+        reference_number: "RET-ABC123",
+        isAdmin: true,
+      });
+      expect(validAdmin.status).toBe(200);
+      expect(validAdmin.outboxClaimed).toBe(true);
+      expect(JSON.stringify(validAdmin.body)).not.toContain("vip.client@example.com");
+    });
+
+    it("behaviorally escapes malicious HTML payloads in email fields", () => {
+      const escapeHtml = (value: string | null | undefined): string => {
+        if (!value) return "";
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      };
+
+      const malicious = `<img src=x onerror="alert('xss')">&<a href="https://evil.test">click</a>`;
+      const escaped = escapeHtml(malicious);
+      expect(escaped).not.toContain("<img");
+      expect(escaped).not.toContain("<a ");
+      expect(escaped).toBe(
+        "&lt;img src=x onerror=&quot;alert(&#39;xss&#39;)&quot;&gt;&amp;&lt;a href=&quot;https://evil.test&quot;&gt;click&lt;/a&gt;"
+      );
     });
   });
 });

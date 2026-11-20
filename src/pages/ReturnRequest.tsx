@@ -287,21 +287,24 @@ const ReturnRequest = () => {
       // 6. Confirmed Persistence: Record rate-limit attempt & dispatch notification
       submitRateLimit.recordAttempt(cleanEmail);
 
-      // Trigger asynchronous email notification (fire-and-forget)
-      try {
-        supabase.functions.invoke("return-request-notify", {
-          body: {
-            event: "REQUEST_CREATED",
-            reference_number: verifiedRef,
-            order_number: cleanOrder,
-            customer_email: cleanEmail,
-            customer_name: cleanName || null,
-            product_name: cleanProduct,
-            request_type: requestType,
-            status: "pending",
-          },
-        }).catch(() => {});
-      } catch {}
+      // Trigger asynchronous email notification (fire-and-forget) with server-issued reservation token
+      if (reservationToken) {
+        try {
+          supabase.functions.invoke("return-request-notify", {
+            body: {
+              event: "REQUEST_CREATED",
+              reference_number: verifiedRef,
+              order_number: cleanOrder,
+              customer_email: cleanEmail,
+              reservation_token: reservationToken,
+              customer_name: cleanName || null,
+              product_name: cleanProduct,
+              request_type: requestType,
+              status: "pending",
+            },
+          }).catch(() => {});
+        } catch {}
+      }
 
       // 7. Advance to verified success screen with confirmed server reference
       setSubmissionResult({

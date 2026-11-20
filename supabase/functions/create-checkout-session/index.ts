@@ -2,11 +2,56 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = new Set([
+  "https://aurixperfume.in",
+  "https://www.aurixperfume.in",
+]);
+const DEFAULT_PRODUCTION_ORIGIN = "https://aurixperfume.in";
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigin =
+    origin && ALLOWED_ORIGINS.has(origin) ? origin : DEFAULT_PRODUCTION_ORIGIN;
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
+
+function validateRedirectPath(path: unknown, fallback: string): string | null {
+  if (path === undefined || path === null || path === "") {
+    return fallback;
+  }
+  if (typeof path !== "string") {
+    return null;
+  }
+  const trimmed = path.trim();
+  // Must begin with exactly one '/', rejecting '//', protocol URLs, backslashes, '@', and whitespace
+  if (
+    !trimmed.startsWith("/") ||
+    trimmed.startsWith("//") ||
+    trimmed.includes("\\") ||
+    trimmed.includes("://") ||
+    trimmed.includes("@") ||
+    /[\s\r\n\0]/.test(trimmed)
+  ) {
+    return null;
+  }
+  try {
+    const parsed = new URL(trimmed, DEFAULT_PRODUCTION_ORIGIN);
+    if (parsed.origin !== DEFAULT_PRODUCTION_ORIGIN) {
+      return null;
+    }
+    if (parsed.search || parsed.hash) {
+      return null;
+    }
+    return parsed.pathname;
+  } catch {
+    return null;
+  }
+}
 
 interface LineItemInput {
   name: string;
@@ -25,9 +70,30 @@ interface RequestBody {
 }
 
 serve(async (req: any) => {
+  const rawOrigin = req.headers.get("origin");
+  const trimmedOrigin = rawOrigin ? rawOrigin.trim() : null;
+  const corsHeaders = getCorsHeaders(trimmedOrigin);
+
+  // Enforce production Origin allowlist when an Origin header is supplied
+  if (trimmedOrigin !== null && !ALLOWED_ORIGINS.has(trimmedOrigin)) {
+    return new Response(JSON.stringify({ error: "Forbidden origin" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const origin = trimmedOrigin || DEFAULT_PRODUCTION_ORIGIN;
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -71,6 +137,15 @@ serve(async (req: any) => {
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
       return new Response(JSON.stringify({ error: "Items required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const safeSuccessPath = validateRedirectPath(body.successPath, "/order-confirmation");
+    const safeCancelPath = validateRedirectPath(body.cancelPath, "/checkout");
+    if (!safeSuccessPath || !safeCancelPath) {
+      return new Response(JSON.stringify({ error: "Invalid redirect path" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -131,7 +206,19 @@ serve(async (req: any) => {
 
     const productMap = new Map((dbProducts || []).map((p: any) => [p.id, p]));
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
+    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeSecretKey) {
+      console.error("create-checkout-session: STRIPE_SECRET_KEY is not configured");
+      return new Response(
+        JSON.stringify({ error: "Payment service is temporarily unavailable" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2025-08-27.basil" as any,
     });
 
@@ -227,19 +314,23 @@ serve(async (req: any) => {
       discounts = [{ coupon: stripeCoupon.id }];
     }
 
-    const origin = req.headers.get("origin") || "http://localhost:8080";
-
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
       customer_email: user.email,
       line_items: lineItems,
       ...(discounts ? { discounts } : {}),
-      success_url: `${origin}${body.successPath || "/order-confirmation"}?session_id={CHECKOUT_SESSION_ID}&order_id=${body.orderId}`,
-      cancel_url: `${origin}${body.cancelPath || "/checkout"}?canceled=1`,
+      success_url: `${origin}${safeSuccessPath}?session_id={CHECKOUT_SESSION_ID}&order_id=${body.orderId}`,
+      cancel_url: `${origin}${safeCancelPath}?canceled=1`,
       metadata: {
         order_id: body.orderId,
         user_id: user.id,
+      },
+      payment_intent_data: {
+        metadata: {
+          order_id: body.orderId,
+          user_id: user.id,
+        },
       },
     });
 
@@ -249,7 +340,7 @@ serve(async (req: any) => {
       ? createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey, { auth: { persistSession: false } })
       : supabase;
 
-    await adminClient
+    const { error: updateErr } = await adminClient
       .from("orders")
       .update({
         payment_reference: session.id,
@@ -259,6 +350,21 @@ serve(async (req: any) => {
         tax: dbTax,
       })
       .eq("id", body.orderId);
+
+    if (updateErr) {
+      console.error("create-checkout-session: failed to persist order checkout reference", {
+        orderId: body.orderId,
+        code: updateErr.code,
+        message: updateErr.message,
+      });
+      return new Response(
+        JSON.stringify({ error: "Unable to initialize checkout session. Please try again." }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     return new Response(
       JSON.stringify({ url: session.url, sessionId: session.id }),
@@ -272,7 +378,6 @@ serve(async (req: any) => {
     return new Response(
       JSON.stringify({
         error: "Failed to create checkout session",
-        message: error instanceof Error ? error.message : "Unknown",
       }),
       {
         status: 500,

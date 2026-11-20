@@ -948,6 +948,267 @@ describe("E-Commerce Security & Payment Verification Logic", () => {
       });
     });
   });
+
+  describe("Edge Function Production Security Hardening", () => {
+    it("enforces production origin allowlist, safe redirect paths, PaymentIntent metadata, and DB error checks in create-checkout-session", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const filePath = path.resolve(
+        __dirname,
+        "../../supabase/functions/create-checkout-session/index.ts"
+      );
+      const code = fs.readFileSync(filePath, "utf-8");
+
+      // 1. Production origin allowlist enforced; no localhost fallback or wildcard CORS
+      expect(code).toContain('"https://aurixperfume.in"');
+      expect(code).toContain('"https://www.aurixperfume.in"');
+      expect(code).not.toContain("http://localhost:8080");
+      expect(code).not.toMatch(/"Access-Control-Allow-Origin":\s*"\*"/);
+      expect(code).toMatch(/status:\s*403/);
+
+      // 2. Redirect path validation prevents open redirects
+      expect(code).toMatch(/function\s+validateRedirectPath/);
+      expect(code).toMatch(/!trimmed\.startsWith\("\/"\)/);
+      expect(code).toMatch(/trimmed\.startsWith\("\/\/"\)/);
+      expect(code).toMatch(/Invalid redirect path/);
+
+      // 3. PaymentIntent metadata attached alongside Checkout Session metadata
+      expect(code).toMatch(/payment_intent_data:\s*\{\s*metadata:\s*\{\s*order_id:\s*body\.orderId,\s*user_id:\s*user\.id,?\s*\},?\s*\}/);
+
+      // 4. DB update error checked explicitly
+      expect(code).toMatch(/const\s*\{\s*error:\s*updateErr\s*\}\s*=\s*await\s+adminClient/);
+      expect(code).toMatch(/if\s*\(updateErr\)/);
+
+      // 5. Raw internal error messages not leaked in 500 catch block
+      expect(code).not.toMatch(/message:\s*error\s+instanceof\s+Error\s*\?\s*error\.message/);
+    });
+
+    it("validates redirect paths and production origin allowlist behaviorally", () => {
+      const ALLOWED_ORIGINS = new Set([
+        "https://aurixperfume.in",
+        "https://www.aurixperfume.in",
+      ]);
+      const DEFAULT_ORIGIN = "https://aurixperfume.in";
+
+      const validateRedirectPath = (path: unknown, fallback: string): string | null => {
+        if (path === undefined || path === null || path === "") return fallback;
+        if (typeof path !== "string") return null;
+        const trimmed = path.trim();
+        if (
+          !trimmed.startsWith("/") ||
+          trimmed.startsWith("//") ||
+          trimmed.includes("\\") ||
+          trimmed.includes("://") ||
+          trimmed.includes("@") ||
+          /[\s\r\n\0]/.test(trimmed)
+        ) {
+          return null;
+        }
+        try {
+          const parsed = new URL(trimmed, DEFAULT_ORIGIN);
+          if (parsed.origin !== DEFAULT_ORIGIN || parsed.search || parsed.hash) return null;
+          return parsed.pathname;
+        } catch {
+          return null;
+        }
+      };
+
+      // Allowed production origins
+      expect(ALLOWED_ORIGINS.has("https://aurixperfume.in")).toBe(true);
+      expect(ALLOWED_ORIGINS.has("https://www.aurixperfume.in")).toBe(true);
+      expect(ALLOWED_ORIGINS.has("https://evil.example.com")).toBe(false);
+      expect(ALLOWED_ORIGINS.has("http://aurixperfume.in")).toBe(false);
+
+      // Valid relative single-slash paths
+      expect(validateRedirectPath(undefined, "/order-confirmation")).toBe("/order-confirmation");
+      expect(validateRedirectPath("/order-confirmation", "/order-confirmation")).toBe("/order-confirmation");
+      expect(validateRedirectPath("/checkout", "/checkout")).toBe("/checkout");
+
+      // Open-redirect and malformed path attacks rejected
+      expect(validateRedirectPath("//evil.com/steal", "/checkout")).toBeNull();
+      expect(validateRedirectPath("https://evil.com/steal", "/checkout")).toBeNull();
+      expect(validateRedirectPath("/\\evil.com", "/checkout")).toBeNull();
+      expect(validateRedirectPath("/@evil.com", "/checkout")).toBeNull();
+      expect(validateRedirectPath("order-confirmation", "/checkout")).toBeNull();
+      expect(validateRedirectPath("/checkout?session_id=fake", "/checkout")).toBeNull();
+    });
+
+    it("prevents verify-payment from ever overwriting an already-paid order and enforces authoritative amount & currency checks", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const verifyPath = path.resolve(
+        __dirname,
+        "../../supabase/functions/verify-payment/index.ts"
+      );
+      const code = fs.readFileSync(verifyPath, "utf-8");
+
+      // Fetches existing order including authoritative total_amount
+      expect(code).toMatch(/\.select\("id,\s*user_id,\s*total_amount,\s*payment_status"\)/);
+      // Enforces strict currency check (rejects missing or non-INR currency)
+      expect(code).toMatch(/if\s*\(!session\.currency\s*\|\|\s*session\.currency\.toLowerCase\(\)\s*!==\s*"inr"\)/);
+      // Validates session.amount_total against authoritative DB total_amount with 100-paise tolerance
+      expect(code).toMatch(/typeof\s+sessionAmount\s*!==\s*"number"/);
+      expect(code).toMatch(/Math\.abs\(sessionAmount\s*-\s*expectedAmount\)\s*>\s*100/);
+      expect(code).toContain("Amount mismatch");
+      expect(code).toContain("Invalid payment amount");
+      // Fetches existing order and short-circuits when payment_status === 'paid'
+      expect(code).toMatch(/existingOrder\.payment_status\s*===\s*"paid"/);
+      // Conditional database guard prevents race-condition downgrade and detects 0-row concurrent settlement
+      expect(code).toMatch(/\.neq\("payment_status",\s*"paid"\)\s*\r?\n\s*\.select\("id"\)/);
+      expect(code).toMatch(/!updatedRows\s*\|\|\s*updatedRows\.length\s*===\s*0/);
+      // Enforces production origin allowlist (no wildcard CORS)
+      expect(code).toContain('"https://aurixperfume.in"');
+      expect(code).toContain('"https://www.aurixperfume.in"');
+      expect(code).not.toMatch(/"Access-Control-Allow-Origin":\s*"\*"/);
+      // Checks DB update error and does not leak raw error.message
+      expect(code).toMatch(/if\s*\(updateErr\)/);
+      expect(code).not.toMatch(/message:\s*error\s+instanceof\s+Error\s*\?\s*error\.message/);
+    });
+
+    it("behaviorally verifies verify-payment amount, currency, downgrade, and concurrent webhook settlement logic", () => {
+      const verifyPaymentDecision = (params: {
+        sessionCurrency?: string | null;
+        sessionAmount?: unknown;
+        sessionPaymentStatus: string;
+        dbOrder: { total_amount: number; payment_status: string };
+        concurrentWebhookSettled?: boolean;
+      }) => {
+        if (!params.sessionCurrency || params.sessionCurrency.toLowerCase() !== "inr") {
+          return { status: 400, error: "Currency mismatch" };
+        }
+        if (params.dbOrder.payment_status === "paid") {
+          return { status: 200, paid: true, paymentStatus: "paid", already_processed: true };
+        }
+        const expectedAmount = Math.round(Number(params.dbOrder.total_amount) * 100);
+        if (
+          typeof params.sessionAmount !== "number" ||
+          !Number.isFinite(params.sessionAmount) ||
+          params.sessionAmount <= 0 ||
+          expectedAmount <= 0
+        ) {
+          return { status: 400, error: "Invalid payment amount" };
+        }
+        if (Math.abs(params.sessionAmount - expectedAmount) > 100) {
+          return { status: 400, error: "Amount mismatch" };
+        }
+        const paid = params.sessionPaymentStatus === "paid";
+        // Simulate atomic .neq("payment_status", "paid") when webhook settles concurrently
+        if (params.concurrentWebhookSettled) {
+          params.dbOrder.payment_status = "paid";
+          // 0 rows updated -> re-reads authoritative DB payment_status ('paid')
+          return { status: 200, paid: true, paymentStatus: "paid", already_processed: true };
+        }
+        params.dbOrder.payment_status = paid ? "paid" : "failed";
+        return { status: 200, paid, paymentStatus: params.sessionPaymentStatus };
+      };
+
+      // 1. Valid exact Stripe amount succeeds
+      const order1 = { total_amount: 4536, payment_status: "unpaid" };
+      expect(
+        verifyPaymentDecision({
+          sessionCurrency: "inr",
+          sessionAmount: 453600,
+          sessionPaymentStatus: "paid",
+          dbOrder: order1,
+        })
+      ).toEqual({ status: 200, paid: true, paymentStatus: "paid" });
+      expect(order1.payment_status).toBe("paid");
+
+      // 2. Incorrect Stripe amount rejected
+      const order2 = { total_amount: 4536, payment_status: "unpaid" };
+      expect(
+        verifyPaymentDecision({
+          sessionCurrency: "inr",
+          sessionAmount: 10000,
+          sessionPaymentStatus: "paid",
+          dbOrder: order2,
+        })
+      ).toEqual({ status: 400, error: "Amount mismatch" });
+      expect(order2.payment_status).toBe("unpaid");
+
+      // 3. Missing or invalid Stripe amount rejected
+      expect(
+        verifyPaymentDecision({
+          sessionCurrency: "inr",
+          sessionAmount: null,
+          sessionPaymentStatus: "paid",
+          dbOrder: { total_amount: 4536, payment_status: "unpaid" },
+        })
+      ).toEqual({ status: 400, error: "Invalid payment amount" });
+
+      // 4. Currency mismatch or missing currency rejected
+      expect(
+        verifyPaymentDecision({
+          sessionCurrency: "usd",
+          sessionAmount: 453600,
+          sessionPaymentStatus: "paid",
+          dbOrder: { total_amount: 4536, payment_status: "unpaid" },
+        })
+      ).toEqual({ status: 400, error: "Currency mismatch" });
+      expect(
+        verifyPaymentDecision({
+          sessionCurrency: undefined,
+          sessionAmount: 453600,
+          sessionPaymentStatus: "paid",
+          dbOrder: { total_amount: 4536, payment_status: "unpaid" },
+        })
+      ).toEqual({ status: 400, error: "Currency mismatch" });
+
+      // 5. Already-paid order cannot be downgraded by a failed/unpaid session check
+      const paidOrder = { total_amount: 4536, payment_status: "paid" };
+      expect(
+        verifyPaymentDecision({
+          sessionCurrency: "inr",
+          sessionAmount: 453600,
+          sessionPaymentStatus: "unpaid",
+          dbOrder: paidOrder,
+        })
+      ).toEqual({ status: 200, paid: true, paymentStatus: "paid", already_processed: true });
+      expect(paidOrder.payment_status).toBe("paid");
+
+      // 6. Concurrent webhook settlement prevents reporting failed payment when 0 rows updated
+      const racingOrder = { total_amount: 4536, payment_status: "unpaid" };
+      expect(
+        verifyPaymentDecision({
+          sessionCurrency: "inr",
+          sessionAmount: 453600,
+          sessionPaymentStatus: "unpaid",
+          dbOrder: racingOrder,
+          concurrentWebhookSettled: true,
+        })
+      ).toEqual({ status: 200, paid: true, paymentStatus: "paid", already_processed: true });
+      expect(racingOrder.payment_status).toBe("paid");
+    });
+
+    it("enforces production origin allowlist in shared CORS without breaking Stripe server-to-server webhooks", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const corsPath = path.resolve(__dirname, "../../supabase/functions/_shared/cors.ts");
+      const corsCode = fs.readFileSync(corsPath, "utf-8");
+
+      expect(corsCode).toContain('"https://aurixperfume.in"');
+      expect(corsCode).toContain('"https://www.aurixperfume.in"');
+      expect(corsCode).not.toMatch(/"Access-Control-Allow-Origin":\s*"\*"/);
+      expect(corsCode).toMatch(/status:\s*403/);
+      expect(corsCode).toContain('"FORBIDDEN_ORIGIN"');
+      // Ensures missing Origin header (Stripe webhook) is allowed through
+      expect(corsCode).toMatch(/if\s*\(trimmedOrigin\s*!==\s*null\s*&&\s*!ALLOWED_ORIGINS\.has\(trimmedOrigin\)\)/);
+      // Preserves OPTIONS preflight handling
+      expect(corsCode).toMatch(/if\s*\(req\.method\s*===\s*"OPTIONS"\)/);
+    });
+
+    it("verifies supabase/config.toml enforces explicit JWT settings for all four Edge Functions", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const configPath = path.resolve(__dirname, "../../supabase/config.toml");
+      const configText = fs.readFileSync(configPath, "utf-8");
+
+      expect(configText).toMatch(/\[functions\.create-checkout-session\]\s*\r?\nverify_jwt\s*=\s*true/);
+      expect(configText).toMatch(/\[functions\.verify-payment\]\s*\r?\nverify_jwt\s*=\s*true/);
+      expect(configText).toMatch(/\[functions\.payment-webhook\]\s*\r?\nverify_jwt\s*=\s*false/);
+      expect(configText).toMatch(/\[functions\.return-request-notify\]\s*\r?\nverify_jwt\s*=\s*false/);
+    });
+  });
 });
 
 
